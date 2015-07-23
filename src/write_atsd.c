@@ -1,3 +1,26 @@
+/**
+ * collectd - src/write_atsd.c
+ * Copyright (C) 2012       Pierre-Yves Ritschard
+ * Copyright (C) 2011       Scott Sanders
+ * Copyright (C) 2009       Paul Sadauskas
+ * Copyright (C) 2009       Doug MacEachern
+ * Copyright (C) 2007-2013  Florian octo Forster
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; only version 2 of the License is applicable.
+ *
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+ *
+ **/
+
 /* write_atsd plugin configuation example
  *
  * <Plugin write_atsd>
@@ -70,10 +93,7 @@ struct wa_callback {
     char *protocol;
     char *prefix;
     char *entity;
-
-
-    _Bool log_send_errors;
-
+    
     char send_buf[WA_SEND_BUF_SIZE];
     size_t send_buf_free;
     size_t send_buf_fill;
@@ -96,18 +116,9 @@ static int wa_send_buffer(struct wa_callback *cb) {
 
     ssize_t status = 0;
 
-//    status = send(cb->sock_fd, cb->send_buf, strlen(cb->send_buf), 0);
     status = swrite(cb->sock_fd, cb->send_buf, strlen(cb->send_buf));
     if (status < 0) {
         const char *protocol = cb->protocol ? cb->protocol : WA_DEFAULT_PROTOCOL;
-
-        if (cb->log_send_errors) {
-            char errbuf[1024];
-            ERROR("write_atsd plugin: send to %s:%s (%s) failed with status %zi (%s)",
-                  cb->node, cb->service, protocol,
-                  status, sstrerror(errno, errbuf, sizeof(errbuf)));
-        }
-
         close(cb->sock_fd);
         cb->sock_fd = -1;
 
@@ -438,10 +449,6 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
         }
         else if (strcasecmp(vl->plugin, "df") == 0) {
             strlcat(metric_name, "df.", sizeof(metric_name));
-            //          strlcat(metric_name, vl->type, sizeof(metric_name));
-            //          strlcat(metric_name, ".", sizeof(metric_name));
-            //          strlcat(metric_name, vl->type_instance, sizeof(metric_name));
-
             if (strcasecmp(vl->type, "df_inodes") == 0) {
                 strlcat(metric_name, "inodes.", sizeof(metric_name));
                 strlcat(metric_name, vl->type_instance, sizeof(metric_name));
@@ -496,8 +503,6 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
         }
         else if (strcasecmp(vl->plugin, "users") == 0) {
             strlcat(metric_name, "users.logged_in", sizeof(metric_name));
-//            strlcat(metric_name, ".", sizeof(metric_name));
-//            strlcat(metric_name, ds->ds[i].name, sizeof(metric_name));
         }
         else if (strcasecmp(vl->plugin, "postgresql") == 0) {
             strlcat(metric_name, "db.", sizeof(metric_name));
@@ -633,7 +638,6 @@ static int wa_write(const data_set_t *ds, const value_list_t *vl,
 }
 
 static int wa_config_node(oconfig_item_t * ci) {
-//    INFO("wa_config_node start");
     struct wa_callback *cb;
     user_data_t user_data;
     char callback_name[DATA_MAX_NAME_LEN];
@@ -657,8 +661,6 @@ static int wa_config_node(oconfig_item_t * ci) {
     pthread_mutex_init(&cb->send_lock, /* attr = */ NULL);
     C_COMPLAIN_INIT(&cb->init_complaint);
 
-//    INFO("I'm in wa_config_node. Before parsing config.");
-
     for (i = 0; i < ci->children_num; i++) {
         oconfig_item_t *child = ci->children + i;
 
@@ -676,8 +678,6 @@ static int wa_config_node(oconfig_item_t * ci) {
                 status = -1;
             }
         }
-        else if (strcasecmp("LogSendErrors", child->key) == 0)
-            cf_util_get_boolean(child, &cb->log_send_errors);
         else if (strcasecmp("Prefix", child->key) == 0)
             cf_util_get_string(child, &cb->prefix);
         else if (strcasecmp("Entity", child->key) == 0)
@@ -697,7 +697,6 @@ static int wa_config_node(oconfig_item_t * ci) {
         return (status);
     }
 
-    /* FIXME: Legacy configuration syntax. */
     if (cb->name == NULL)
         ssnprintf(callback_name, sizeof(callback_name), "write_atsd/%s/%s/%s",
                   cb->node != NULL ? cb->node : WA_DEFAULT_NODE,
