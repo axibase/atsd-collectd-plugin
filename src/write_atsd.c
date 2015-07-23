@@ -115,13 +115,10 @@ static void wa_reset_buffer(struct wa_callback *cb) {
 static int wa_send_buffer(struct wa_callback *cb) {
 
     ssize_t status = 0;
-
     status = swrite(cb->sock_fd, cb->send_buf, strlen(cb->send_buf));
     if (status < 0) {
-        const char *protocol = cb->protocol ? cb->protocol : WA_DEFAULT_PROTOCOL;
         close(cb->sock_fd);
         cb->sock_fd = -1;
-
         return (-1);
     }
     return (0);
