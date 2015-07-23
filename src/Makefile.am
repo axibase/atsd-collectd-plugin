@@ -1212,6 +1212,13 @@ wireless_la_SOURCES = wireless.c
 wireless_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_WRITE_ATSD
+pkglib_LTLIBRARIES += write_atsd.la
+write_atsd_la_SOURCES = write_atsd.c \
+                        utils_format_atsd.c utils_format_atsd.h
+write_atsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_WRITE_GRAPHITE
 pkglib_LTLIBRARIES += write_graphite.la
 write_graphite_la_SOURCES = write_graphite.c \
