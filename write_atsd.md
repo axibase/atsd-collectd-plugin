@@ -19,11 +19,11 @@ Possible settings:
 
  setting             | description                                                                       | default value
 ----------------------|-----------------------------------------------------------------------------------|----------------
- `Host`      	      | ATSD hostname                                                                     | `localhost`
- `Port`               | ATSD port                                                                         | `8081`
- `Protocol`           | protocol: `"tcp"` or `"udp"`                                                      | `"tcp"`
- `Entity`             | default entity                                                                    | local hostname
- `Prefix`             | global prefix for each metric                                                     | `""`
+ `Host`      	      | hostname of target ATSD server                                                                    | `localhost`
+ `Port`               | port of target ATSD server                                                                         | `8081`
+ `Protocol`           | protocol that will be used to transfer data: `tcp` or `udp`                                                      | `"tcp"`
+ `Entity`             | default entity under which all metrics will be stored                                                                    | local hostname
+ `Prefix`             | global prefix for each metric, used to distinguish metrics                                                     | `""`
 
 
 Example configuration file:
