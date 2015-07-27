@@ -437,6 +437,9 @@ Features
       needed. Please read collectd-unixsock(5) for a description on how that's
       done.
 
+    - write_atsd
+      Sends data to ATSD using TCP or UDP, [Axibase Time-Series Database](write_atsd.md)
+
     - write_graphite
       Sends data to Carbon, the storage layer of Graphite using TCP or UDP. It
       can be configured to avoid logging send errors (especially useful when
