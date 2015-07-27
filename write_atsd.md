@@ -52,7 +52,7 @@ LoadPlugin write_atsd
     Type "cpu"
     GroupBy "Host"
     GroupBy "TypeInstance"
-    CalculateSum true
+    CalculateAverage true
   </Aggregation>
 </Plugin>
 
