@@ -446,6 +446,20 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
         }
         else if (strcasecmp(vl->plugin, "df") == 0) {
             strlcat(metric_name, "df.", sizeof(metric_name));
+            sstrncpy(plugin_instance, "/", sizeof(plugin_instance));
+
+            if (strcasecmp(vl->plugin_instance, "root") != 0) {
+                strlcat(plugin_instance, vl->plugin_instance, sizeof(plugin_instance));
+
+                char *c;
+                for (c = plugin_instance; *c; c++) {
+                    if (*c == '-')
+                        *c = '/';
+                }
+            }
+
+
+
             if (strcasecmp(vl->type, "df_inodes") == 0) {
                 strlcat(metric_name, "inodes.", sizeof(metric_name));
                 strlcat(metric_name, vl->type_instance, sizeof(metric_name));
@@ -477,19 +491,6 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
             else
                 ERROR("df plugin in write_atsd: unexpected value->type = %s: ", vl->type);
 
-
-            // todo anyway we need leading dash
-            sstrncpy(plugin_instance, "/", sizeof(plugin_instance));
-
-            if (strcasecmp(vl->plugin_instance, "root") != 0) {
-                strlcat(plugin_instance, vl->plugin_instance, sizeof(plugin_instance));
-
-                char *c;
-                for (c = plugin_instance; *c; c++) {
-                    if (*c == '-')
-                        *c = '/';
-                }
-            }
             ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
                       entity, 1000 * (long) CDTIME_T_TO_TIME_T(vl->time), metric_name, ret, plugin_instance);
             status = wa_send_message(sendline, cb);
