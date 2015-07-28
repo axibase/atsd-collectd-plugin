@@ -153,7 +153,8 @@ static int wa_flush_nolock(cdtime_t timeout, struct wa_callback *cb) {
     return (status);
 }
 
-static int wa_callback_init(struct wa_callback *cb) {
+static int wa_callback_init(struct wa_callback *cb)
+{
     struct addrinfo ai_hints;
     struct addrinfo *ai_list;
     struct addrinfo *ai_ptr;
@@ -180,8 +181,7 @@ static int wa_callback_init(struct wa_callback *cb) {
 #ifdef AI_ADDRCONFIG
     ai_hints.ai_flags |= AI_ADDRCONFIG;
 #endif
-//    ai_hints.ai_family = AF_UNSPEC;
-    ai_hints.ai_family = AF_INET;
+    ai_hints.ai_family = AF_UNSPEC;
 
     if (0 == strcasecmp("tcp", protocol))
         ai_hints.ai_socktype = SOCK_STREAM;
@@ -191,14 +191,16 @@ static int wa_callback_init(struct wa_callback *cb) {
     ai_list = NULL;
 
     status = getaddrinfo(node, service, &ai_hints, &ai_list);
-    if (status != 0) {
+    if (status != 0)
+    {
         ERROR("write_atsd plugin: getaddrinfo (%s, %s, %s) failed: %s",
               node, service, protocol, gai_strerror(status));
         return (-1);
     }
 
     assert(ai_list != NULL);
-    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next) {
+    for (ai_ptr = ai_list; ai_ptr != NULL; ai_ptr = ai_ptr->ai_next)
+    {
         cb->sock_fd = socket(ai_ptr->ai_family, ai_ptr->ai_socktype,
                              ai_ptr->ai_protocol);
         if (cb->sock_fd < 0) {
@@ -345,11 +347,12 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
     }
 
     char sendline[512];
-
     char metric_name[512];
+    char prefix[256] = "";
 
-    if (cb->prefix == NULL) {
-        cb->prefix = "";
+    if (cb->prefix != NULL) {
+        sstrncpy(prefix, cb->prefix, sizeof(prefix));
+        strlcat(prefix, ".", sizeof(prefix));
     }
 
     char entity[WA_ENTITY_LENGTH];
@@ -377,7 +380,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
         if (status != 0)
             return (status);
 
-        sstrncpy(metric_name, cb->prefix, sizeof(metric_name));
+        sstrncpy(metric_name, prefix, sizeof(metric_name));
 
         if (strcasecmp(vl->plugin, "cpu") == 0) {
             strlcat(metric_name, "cpu.", sizeof(metric_name));
@@ -392,10 +395,10 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
 
                 if (vl->plugin_instance[0] != '\0') {
                     ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
-                              entity, 1000 * (long) CDTIME_T_TO_TIME_T(vl->time), tmp, tv, vl->plugin_instance);
+                              entity, CDTIME_T_TO_MS(vl->time), tmp, tv, vl->plugin_instance);
                 } else {
                     ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s\n",
-                              entity, 1000 * (long) CDTIME_T_TO_TIME_T(vl->time), tmp, tv);
+                              entity, CDTIME_T_TO_MS(vl->time), tmp, tv);
                 }
                 status = wa_send_message(sendline, cb);
                 if (status != 0) /* error message has been printed already. */
@@ -474,7 +477,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                     strlcat(tmp, "used-reserved.percent", sizeof(metric_name));
                     ssnprintf(tv, sizeof(tv), "%f", (100 - atof(ret)));
                     ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
-                              entity, 1000 * (long) CDTIME_T_TO_TIME_T(vl->time), tmp, tv, plugin_instance);
+                              entity, CDTIME_T_TO_MS(vl->time), tmp, tv, plugin_instance);
                     status = wa_send_message(sendline, cb);
                     if (status != 0) /* error message has been printed already. */
                         return (status);
@@ -492,7 +495,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 ERROR("df plugin in write_atsd: unexpected value->type = %s: ", vl->type);
 
             ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
-                      entity, 1000 * (long) CDTIME_T_TO_TIME_T(vl->time), metric_name, ret, plugin_instance);
+                      entity, CDTIME_T_TO_MS(vl->time), metric_name, ret, plugin_instance);
             status = wa_send_message(sendline, cb);
             if (status != 0) /* error message has been printed already. */
                 return (status);
@@ -517,9 +520,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
         else if (strcasecmp(vl->plugin, "load") == 0) {
 
             strlcat(metric_name, "load", sizeof(metric_name));
-            /**/
             strlcat(metric_name, ".loadavg", sizeof(metric_name));
-            /**/
 
             if (strcasecmp(ds->ds[i].name, "shortterm") == 0) {
                 strlcat(metric_name, ".1m", sizeof(metric_name));
@@ -561,7 +562,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 strlcat(tmp, str_location, sizeof(tmp));
 
                 ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s\n",
-                          entity, 1000 * (long) CDTIME_T_TO_TIME_T(vl->time), tmp, tv);
+                          entity, CDTIME_T_TO_MS(vl->time), tmp, tv);
                 status = wa_send_message(sendline, cb);
                 if (status != 0) /* error message has been printed already. */
                     return (status);
@@ -576,7 +577,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
 
 
             ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s\n",
-                      entity, 1000 * (long) CDTIME_T_TO_TIME_T(vl->time), metric_name, ret);
+                      entity, CDTIME_T_TO_MS(vl->time), metric_name, ret);
             status = wa_send_message(sendline, cb);
             if (status != 0) /* error message has been printed already. */
                 return (status);
@@ -604,10 +605,10 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
 
         if (vl->plugin_instance[0] != '\0') {
             ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
-                      entity, 1000 * (long) CDTIME_T_TO_TIME_T(vl->time), metric_name, ret, vl->plugin_instance);
+                      entity, CDTIME_T_TO_MS(vl->time), metric_name, ret, vl->plugin_instance);
         } else {
             ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s\n",
-                      entity, 1000 * (long) CDTIME_T_TO_TIME_T(vl->time), metric_name, ret);
+                      entity, CDTIME_T_TO_MS(vl->time), metric_name, ret);
         }
         status = wa_send_message(sendline, cb);
         if (status != 0) /* error message has been printed already. */
@@ -616,9 +617,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
 
     return (0);
 }
-
 /* int wa_write_messages */
-
 
 static int wa_write(const data_set_t *ds, const value_list_t *vl,
                     user_data_t *user_data) {
