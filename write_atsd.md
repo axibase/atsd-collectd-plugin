@@ -1,4 +1,4 @@
-The ATSD Write plugin sends metrics to [Axibase Time-Series Database](https://axibase.com/products/axibase-time-series-database/) server.
+The ATSD Write plugin sends metrics to [Axibase Time-Series Database](https://axibase.com/products/axibase-time-series-database/).
 
 Synopsis
 
@@ -108,7 +108,7 @@ LoadPlugin write_atsd
  </Plugin>
 ```
 
-Commands sent by the ATSD Write plugin to insert time series data into the ATSD server:
+Commands sent by the ATSD Write plugin to insert time series data into ATSD:
 
 ```
 series e:entity ms:1437658049000 m:collectd.cpu.aggregation.idle.average=99.500014
