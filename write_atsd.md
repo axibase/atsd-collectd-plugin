@@ -103,7 +103,7 @@ LoadPlugin write_atsd
          Port 8081
          Protocol "tcp"
          Entity "entity"
-         Prefix "collectd"
+         Prefix "collectd."
      </Node>
  </Plugin>
 ```
