@@ -438,8 +438,8 @@ Features
       done.
 
     - write_atsd
-      Sends data to Axibase Time-Series Database (ATSD) server using TCP or UDP
-      protocol. The transmitted data is in ATSD network commands form, [see 
+      Sends data to Axibase Time-Series Database (ATSD) using TCP or UDP
+      protocol. The transmitted data is in ATSD API network commands form, [see 
       details](write_atsd.md).
 
     - write_graphite
