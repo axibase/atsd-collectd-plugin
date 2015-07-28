@@ -181,7 +181,7 @@ static int wa_callback_init(struct wa_callback *cb)
     if ((now - cb->last_connect_time) < WA_MIN_RECONNECT_INTERVAL)
         return (EAGAIN);
     cb->last_connect_time = now;
-    cb->last_property_time = now - WA_PROPERTY_INTERVAL;
+    cb->last_property_time = now;
 
     memset(&ai_hints, 0, sizeof(ai_hints));
 #ifdef AI_ADDRCONFIG
