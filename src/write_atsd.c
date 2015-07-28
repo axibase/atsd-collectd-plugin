@@ -460,8 +460,6 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 }
             }
 
-
-
             if (strcasecmp(vl->type, "df_inodes") == 0) {
                 strlcat(metric_name, "inodes.", sizeof(metric_name));
                 strlcat(metric_name, vl->type_instance, sizeof(metric_name));
@@ -732,42 +730,3 @@ void module_register(void) {
     plugin_register_complex_config("write_atsd", wa_complex_config);
 }
 /* vim: set sw=4 ts=4 sts=4 tw=78 et : */
-
-metric = sys.argv[1]
-for x in range(0, 1000000):
-        value = str (random.uniform(20, 80))
-        curr_epoch = start_epoch + x
-
-        #tag1 = "put " + metric +"_1 %d %s stt=good\n" % (curr_epoch,value)
-        #tag2 = "put " + metric +"_2 %d %s stt=good\n" % (curr_epoch,value)
-        #tag3 = "put " + metric +"_3 %d %s stt=good\n" % (curr_epoch,value)
-        #tag4 = "put " + metric +"_4 %d %s stt=good\n" % (curr_epoch,value)
-        #tag5 = "put " + metric +"_5 %d %s stt=good\n" % (curr_epoch,value)
-        #tag6 = "put " + metric +"_6 %d %s stt=good\n" % (curr_epoch,value)
-        #tag7 = "put " + metric +"_7 %d %s stt=good\n" % (curr_epoch,value)
-        #tag8 = "put " + metric +"_8 %d %s stt=good\n" % (curr_epoch,value)
-        #tag9 = "put " + metric +"_9 %d %s stt=good\n" % (curr_epoch,value)
-        #tag10 = "put " + metric + "_10 %d %s stt=good\n" % (curr_epoch,value)
-        #str = tag1 + tag2 + tag3 + tag4 + tag5 + tag6 + tag7 + tag8 + tag9 + tag10
-
-        tag1 = "put  TAGGGGGG_1 %d 12.9 stt=good\n" % (curr_epoch)
-        tag2 = "put  TAGGGGGG_2 %d 12.9 stt=good\n" % (curr_epoch)
-        tag3 = "put  TAGGGGGG_3 %d 12.9 stt=good\n" % (curr_epoch)
-        tag4 = "put  TAGGGGGG_4 %d 12.9 stt=good\n" % (curr_epoch)
-        tag5 = "put  TAGGGGGG_5 %d 12.9 stt=good\n" % (curr_epoch)
-        tag6 = "put  TAGGGGGG_6 %d 12.9 stt=good\n" % (curr_epoch)
-        tag7 = "put  TAGGGGGG_7 %d 12.9 stt=good\n" % (curr_epoch)
-        tag8 = "put  TAGGGGGG_8 %d 12.9 stt=good\n" % (curr_epoch)
-        tag9 = "put  TAGGGGGG_9 %d 12.9 stt=good\n" % (curr_epoch)
-        tag10 = "put TAGGGGGG_10 %d 12.9 stt=good\n" % (curr_epoch)
-
-        str = tag1 + tag2 + tag3 + tag4 + tag5 + tag6 + tag7 + tag8 + tag9 + tag10
-
-        s.send(str)
-
-
-
-
-s.send(str)
-
-print("--- %s seconds ---" % (time.time() - start_time))
