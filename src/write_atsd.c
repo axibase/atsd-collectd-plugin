@@ -80,6 +80,10 @@
 # define WA_MIN_RECONNECT_INTERVAL TIME_T_TO_CDTIME_T (1)
 #endif
 
+#ifndef WA_PROPERTY_INTERVAL
+# define WA_PROPERTY_INTERVAL TIME_T_TO_CDTIME_T (300)
+#endif
+
 /*
  * Private variables
  */
@@ -93,7 +97,7 @@ struct wa_callback {
     char *protocol;
     char *prefix;
     char *entity;
-    
+
     char send_buf[WA_SEND_BUF_SIZE];
     size_t send_buf_free;
     size_t send_buf_fill;
@@ -102,6 +106,7 @@ struct wa_callback {
     pthread_mutex_t send_lock;
     c_complain_t init_complaint;
     cdtime_t last_connect_time;
+    cdtime_t last_property_time;
 };
 
 
@@ -176,6 +181,7 @@ static int wa_callback_init(struct wa_callback *cb)
     if ((now - cb->last_connect_time) < WA_MIN_RECONNECT_INTERVAL)
         return (EAGAIN);
     cb->last_connect_time = now;
+    cb->last_property_time = now - WA_PROPERTY_INTERVAL;
 
     memset(&ai_hints, 0, sizeof(ai_hints));
 #ifdef AI_ADDRCONFIG
@@ -349,6 +355,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
     char sendline[512];
     char metric_name[512];
     char prefix[256] = "";
+    cdtime_t now;
 
     if (cb->prefix != NULL) {
         sstrncpy(prefix, cb->prefix, sizeof(prefix));
@@ -361,6 +368,15 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
 
     if (status != 0) /* error message has been printed already. */
         return (status);
+
+    now = cdtime();
+    if ((now - cb->last_property_time) > WA_PROPERTY_INTERVAL){
+        cb->last_property_time = now;
+        ssnprintf(sendline, sizeof(sendline), "property e:%s ms:%lu t:collectd-atsd k:host=%s\n",
+                  entity, CDTIME_T_TO_MS(vl->time), vl->host);
+        status = wa_send_message(sendline, cb);
+    }
+
 
 
     for (i = 0; i < ds->ds_num; i++) {
