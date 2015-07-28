@@ -26,7 +26,7 @@ Possible settings:
  `Prefix`             | global prefix for each metric, used to distinguish metrics                                                     | `""`
 
 
-Example configuration file that demonstrates using main read plugins and output from them :
+Example configuration file that demonstrates using main read plugins and output from them:
 
 ```
 LoadPlugin aggregation
@@ -46,7 +46,8 @@ LoadPlugin uptime
 LoadPlugin users
 LoadPlugin write_atsd
 
-# The following configuration aggregates the CPU statistics of all CPUs into one set using the average consolidation function.
+# The following configuration aggregates the CPU statistics of all CPUs
+# into one set using the average consolidation function.
 <Plugin aggregation>
   <Aggregation>
     Plugin "cpu"
@@ -57,24 +58,30 @@ LoadPlugin write_atsd
   </Aggregation>
 </Plugin>
 
-# The following configuration collects data for all filesystems: the number of free, reserved and used inodes is reported in addition to the usual metrics, the values are relative percentage. 
+# The following configuration collects data for all filesystems: 
+# the number of free, reserved and used inodes is reported in addition to
+# the usual metrics, the values are relative percentage. 
 <Plugin df>
     IgnoreSelected true
     ReportInodes true
     ValuesPercentage true
 </Plugin>
 
-# The following configuration collects performance statistics of all hard-disks and, where supported, partitions.
+# The following configuration collects performance statistics of all 
+# hard-disks and, where supported, partitions.
 <Plugin disk>
     IgnoreSelected true
 </Plugin>
 
-# The following configuration collects information about the traffic, packets per second and errors of all interfaces.
+# The following configuration collects information about the traffic,
+# packets per second and errors of all interfaces.
 <Plugin interface>
     IgnoreSelected true
 </Plugin>
 
-# The following configuration sets the log-level and the file to write log messages to; all lines are prefixed by the severity of the log message and by the current time.
+# The following configuration sets the log-level and the file to write
+# log messages to; all lines are prefixed by the severity of the log
+# message and by the current time.
 <Plugin logfile>
     LogLevel info
     File "/var/log/collectd.log"
@@ -87,7 +94,9 @@ LoadPlugin write_atsd
    LogLevel info
 </Plugin>
 
-# The following configuration connects to ATSD server on localhost via TCP and sends data via port 8081. The data will be sent with Entity "entity" and Prefix "collectd".
+# The following configuration connects to ATSD server on localhost
+# via TCP and sends data via port 8081. The data will be sent with
+# Entity "entity" and Prefix "collectd".
 <Plugin write_atsd>
      <Node "atsd">
          Host "localhost"
