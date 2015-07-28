@@ -372,9 +372,12 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
     now = cdtime();
     if ((now - cb->last_property_time) > WA_PROPERTY_INTERVAL){
         cb->last_property_time = now;
-        ssnprintf(sendline, sizeof(sendline), "property e:%s ms:%lu t:collectd-atsd k:host=%s\n",
+        ssnprintf(sendline, sizeof(sendline), "property e:%s ms:%lu t:collectd-atsd v:host=%s\n",
                   entity, CDTIME_T_TO_MS(vl->time), vl->host);
         status = wa_send_message(sendline, cb);
+        if (status != 0) 
+    	    return (status);
+
     }
 
 
