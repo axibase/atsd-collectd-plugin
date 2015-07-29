@@ -52,6 +52,9 @@
 /* strlcat based on OpenBSDs strlcat */
 #include <stdlib.h>
 #include <string.h>
+#include <sys/utsname.h>
+
+
 
 #ifndef WA_DEFAULT_NODE
 # define WA_DEFAULT_NODE "localhost"
@@ -372,8 +375,27 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
     now = cdtime();
     if ((now - cb->last_property_time) > WA_PROPERTY_INTERVAL){
         cb->last_property_time = now;
-        ssnprintf(sendline, sizeof(sendline), "property e:%s ms:%lu t:collectd-atsd v:host=%s\n",
-                  entity, CDTIME_T_TO_MS(vl->time), vl->host);
+
+        int ret;
+        struct utsname buf;
+        ret = uname(&buf);
+        if(!ret) {
+            printf("OperatingSystem name: %s\n",buf.sysname);
+            printf("Node(Host) name: %s\n",buf.nodename);
+            printf("Kernel Release Version: %s\n",buf.release);
+            printf("OS Version: %s\n",buf.version);
+            printf("Hardware: %s\n",buf.machine);
+
+            ssnprintf(sendline, sizeof(sendline), "property e:%s ms:%lu t:collectd-atsd v:host=%s v:OperatingSystem=\"%s\" v:Node=\"%s\" v:Kernel_Release_Version=\"%s\" v:OS_Version=\"%s\" v:Hardware=\"%s\"\n",
+                      entity, CDTIME_T_TO_MS(vl->time), vl->host, buf.sysname, buf.nodename, buf.release, buf.version, buf.machine);
+        }
+        else {
+            ssnprintf(sendline, sizeof(sendline), "property e:%s ms:%lu t:collectd-atsd v:host=%s\n",
+                      entity, CDTIME_T_TO_MS(vl->time), vl->host);
+        }
+
+
+
         status = wa_send_message(sendline, cb);
         if (status != 0) 
     	    return (status);
