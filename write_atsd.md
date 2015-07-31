@@ -22,7 +22,7 @@ Possible settings:
  `Host`      	      | hostname of target ATSD server                                                                    | `localhost`
  `Port`               | port of target ATSD server                                                                         | `8081`
  `Protocol`           | protocol that will be used to transfer data: `tcp` or `udp`                                                      | `"tcp"`
- `Entity`             | default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname. If this setting is uncommented, then the entered value will be used as the entity.                                                                    | hostname
+ `Entity`             | default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname. If this setting is uncommented, then the entered value will be used as the entity.                                                                    | `hostname`
  `Prefix`             | global prefix for each metric, used to distinguish metrics                                                     | `""`
 
 
