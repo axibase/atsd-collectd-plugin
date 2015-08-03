@@ -9,21 +9,19 @@ LoadPlugin write_atsd
          Host "127.0.0.1"
          Port 8081
          Protocol "tcp"
-         Entity "hostname"
-         Prefix "collectd"
      </Node>
  </Plugin>
 ```
 
 Possible settings:
 
- setting             | description                                                                       | default value
-----------------------|-----------------------------------------------------------------------------------|----------------
- `Host`      	      | hostname of target ATSD server                                                                    | `localhost`
- `Port`               | port of target ATSD server                                                                         | `8081`
- `Protocol`           | protocol that will be used to transfer data: `tcp` or `udp`                                                      | `"tcp"`
- `Entity`             | default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname. If this setting is uncommented, then the entered value will be used as the entity.                                                                    | `hostname`
- `Prefix`             | global prefix for each metric, used to distinguish metrics                                                     | `""`
+ setting              | required | description                                                                       | default value
+----------------------|----------|-----------------------------------------------------------------------------------|----------------
+ `Host`      	      | yes      | hostname of target ATSD server                                                                    | `localhost`
+ `Port`               | yes      | port of target ATSD server                                                                         | `8081`
+ `Protocol`           | yes      | protocol that will be used to transfer data: `tcp` or `udp`                                                      | `tcp`
+ `Entity`             | no       | default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname. If this setting is uncommented, then the entered value will be used as the entity                                                                    | `hostname`
+ `Prefix`             | no       | global prefix for each metric, used to distinguish metrics                                                     | `""`
 
 
 Example configuration file that demonstrates to use the main read plugins and their outputs:
@@ -102,8 +100,8 @@ LoadPlugin write_atsd
          Host "localhost"
          Port 8081
          Protocol "tcp"
-         Entity "hostname"
          Prefix "collectd."
+	 Entity "nurswgsvl007"
      </Node>
  </Plugin>
 ```
@@ -111,19 +109,19 @@ LoadPlugin write_atsd
 Commands sent by the ATSD Write plugin to insert time series data into ATSD:
 
 ```
-series e:entity ms:1437658049000 m:collectd.cpu.aggregation.idle.average=99.500014
-series e:entity ms:1437658049000 m:collectd.contextswitch.contextswitch=68.128436
-series e:entity ms:1437658049000 m:collectd.cpu.busy=0.301757 t:instance=0
-series e:entity ms:1437658049000 m:collectd.df.space.free=11977220096 t:instance=/
-series e:entity ms:1437658049000 m:collectd.disk.disk_io_time.io_time=17.602089 t:instance=sda
-series e:entity ms:1437658049000 m:collectd.entropy.available=896
-series e:entity ms:1437658049000 m:collectd.interface.if_octets.received=322.393744 t:instance=eth0
-series e:entity ms:1437658049000 m:collectd.load.loadavg.1m=0.08
-series e:entity ms:1437658049000 m:collectd.memory.used=332271616
-series e:entity ms:1437658049000 m:collectd.processes.sleeping=177
-series e:entity ms:1437658049000 m:collectd.memory.swap_used=139268096
-series e:entity ms:1437658049000 m:collectd.uptime.uptime=1185
-series e:entity ms:1437658049000 m:collectd.users.logged_in=4
+series e:nurswgsvl007 ms:1437658049000 m:collectd.cpu.aggregation.idle.average=99.500014
+series e:nurswgsvl007 ms:1437658049000 m:collectd.contextswitch.contextswitch=68.128436
+series e:nurswgsvl007 ms:1437658049000 m:collectd.cpu.busy=0.301757 t:instance=0
+series e:nurswgsvl007 ms:1437658049000 m:collectd.df.space.free=11977220096 t:instance=/
+series e:nurswgsvl007 ms:1437658049000 m:collectd.disk.disk_io_time.io_time=17.602089 t:instance=sda
+series e:nurswgsvl007 ms:1437658049000 m:collectd.entropy.available=896
+series e:nurswgsvl007 ms:1437658049000 m:collectd.interface.if_octets.received=322.393744 t:instance=eth0
+series e:nurswgsvl007 ms:1437658049000 m:collectd.load.loadavg.1m=0.08
+series e:nurswgsvl007 ms:1437658049000 m:collectd.memory.used=332271616
+series e:nurswgsvl007 ms:1437658049000 m:collectd.processes.sleeping=177
+series e:nurswgsvl007 ms:1437658049000 m:collectd.memory.swap_used=139268096
+series e:nurswgsvl007 ms:1437658049000 m:collectd.uptime.uptime=1185
+series e:nurswgsvl007 ms:1437658049000 m:collectd.users.logged_in=4
 ...
 ```
 

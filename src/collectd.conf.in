@@ -1338,8 +1338,6 @@
 #         Host "localhost"
 #         Port 8081
 #         Protocol "tcp"
-#         Entity "hostname"
-#         Prefix "collectd."
 #     </Node>
 # </Plugin>
 
