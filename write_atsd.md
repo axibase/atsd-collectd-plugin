@@ -3,14 +3,15 @@ The ATSD Write plugin sends metrics to [Axibase Time-Series Database](https://ax
 Synopsis
 
 ```
-LoadPlugin write_atsd
-<Plugin write_atsd>
-     <Node "atsd">
-         Host "127.0.0.1"
-         Port 8081
-         Protocol "tcp"
-     </Node>
- </Plugin>
+#LoadPlugin write_atsd
+...
+#<Plugin write_atsd>
+#     <Node "atsd">
+#         Host "127.0.0.1"
+#         Port 8081
+#         Protocol "tcp"
+#     </Node>
+# </Plugin>
 ```
 
 Possible settings:
@@ -101,7 +102,7 @@ LoadPlugin write_atsd
          Port 8081
          Protocol "tcp"
          Prefix "collectd."
-	 Entity "nurswgsvl007"
+         Entity "nurswgsvl007"
      </Node>
  </Plugin>
 ```
