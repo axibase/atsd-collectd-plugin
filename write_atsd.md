@@ -22,7 +22,7 @@ Possible settings:
  `Port`               | yes      | port of target ATSD server                                                                         | `8081`
  `Protocol`           | yes      | protocol that will be used to transfer data: `tcp` or `udp`                                                      | `tcp`
  `Entity`             | no       | default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname. If this setting is uncommented, then the entered value will be used as the entity                                                                    | `hostname`
- `Prefix`             | no       | global prefix for each metric, used to distinguish metrics                                                     | `""`
+ `Prefix`             | no       | global prefix for each metric, used to distinguish metrics                                                     | `collectd.`
 
 
 Example configuration file that demonstrates to use the main read plugins and their outputs:

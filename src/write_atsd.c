@@ -68,6 +68,10 @@
 # define WA_DEFAULT_PROTOCOL "tcp"
 #endif
 
+#ifndef WA_DEFAULT_PREFIX
+# define WA_DEFAULT_PREFIX "collectd."
+#endif
+
 
 #ifndef WA_ENTITY_LENGTH
 # define WA_ENTITY_LENGTH 512
@@ -357,12 +361,8 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
 
     char sendline[512];
     char metric_name[512];
-    char prefix[256] = "";
     cdtime_t now;
-
-    if (cb->prefix != NULL) {
-        sstrncpy(prefix, cb->prefix, sizeof(prefix));
-    }
+    char *prefix = cb->prefix ? cb->prefix : WA_DEFAULT_PREFIX;
 
     char entity[WA_ENTITY_LENGTH];
     int ent_len = sizeof(entity);
