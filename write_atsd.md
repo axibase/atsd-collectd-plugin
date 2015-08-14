@@ -4,7 +4,7 @@ Synopsis
 
 ```
 #LoadPlugin write_atsd
-...
+#...
 #<Plugin write_atsd>
 #     <Node "atsd">
 #         Host "127.0.0.1"
