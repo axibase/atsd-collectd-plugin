@@ -107,6 +107,13 @@ pkglib_LTLIBRARIES =
 BUILT_SOURCES =
 CLEANFILES =
 
+if BUILD_PLUGIN_WRITE_ATSD
+pkglib_LTLIBRARIES += write_atsd.la
+write_atsd_la_SOURCES = write_atsd.c \
+                        utils_format_atsd.c utils_format_atsd.h
+write_atsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
 aggregation_la_SOURCES = aggregation.c \
@@ -1210,13 +1217,6 @@ if BUILD_PLUGIN_WIRELESS
 pkglib_LTLIBRARIES += wireless.la
 wireless_la_SOURCES = wireless.c
 wireless_la_LDFLAGS = $(PLUGIN_LDFLAGS)
-endif
-
-if BUILD_PLUGIN_WRITE_ATSD
-pkglib_LTLIBRARIES += write_atsd.la
-write_atsd_la_SOURCES = write_atsd.c \
-                        utils_format_atsd.c utils_format_atsd.h
-write_atsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_WRITE_GRAPHITE
