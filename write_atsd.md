@@ -10,6 +10,14 @@ Synopsis
 #         Host "127.0.0.1"
 #         Port 8081
 #         Protocol "tcp"
+#         <Cache "cpu">
+#              Interval 95
+#              Threshold 5
+#         </Cache>
+#         <Cache "df">
+#              Interval 300
+#              Threshold 0
+#         </Cache>
 #     </Node>
 # </Plugin>
 ```
@@ -23,7 +31,11 @@ Possible settings:
  `Protocol`           | yes      | protocol that will be used to transfer data: `tcp` or `udp`                                                      | `tcp`
  `Entity`             | no       | default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname. If this setting is uncommented, then the entered value will be used as the entity                                                                    | `hostname`
  `Prefix`             | no       | global prefix for each metric, used to distinguish metrics                                                     | `collectd.`
+ `Cache`             | no       | read plugin name to cache: all possible metrics will be counted                                                     | `-`
+ `Interval`             | no       | time in seconds that means step between same values                                                     | `-`
+ `Threshold`             | no       | allowable deviation threshold from the cached value                                                     | `-`
 
+For example, we can receive the same values (like 0) from read plugins and it will be sent with the default collectd interval (every 10 seconds), but if the value doesn't change we can send it less frequently until it changes. With threshold parameter we can set allowed deviation from previous value (set in percent %). Interval is responsible for frequency at which values (that do not change beyond the threshold) are sent and we can be sure that data points (values) inside this interval are not changing.
 
 Example configuration file that demonstrates to use the main read plugins and their outputs:
 
@@ -103,6 +115,14 @@ LoadPlugin write_atsd
          Protocol "tcp"
          Prefix "collectd."
          Entity "nurswgsvl007"
+         <Cache "cpu">
+              Interval 95
+              Threshold 5
+         </Cache>
+         <Cache "disk">
+              Interval 300
+              Threshold 1
+         </Cache>
      </Node>
  </Plugin>
 ```
