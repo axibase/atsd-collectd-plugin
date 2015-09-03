@@ -57,6 +57,7 @@ LoadPlugin syslog
 LoadPlugin uptime
 LoadPlugin users
 LoadPlugin write_atsd
+LoadPlugin vmem
 
 # The following configuration aggregates the CPU statistics from all CPUs
 # into one set using the average consolidation function.
@@ -126,6 +127,12 @@ LoadPlugin write_atsd
          </Cache>
      </Node>
  </Plugin>
+
+# The following configuration enables verbose collection of information
+# about the usage of virtual memory
+<Plugin vmem>
+         Verbose true
+</Plugin>
 ```
 
 Commands sent by the ATSD Write plugin to insert time series data into ATSD:
