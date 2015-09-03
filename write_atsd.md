@@ -31,10 +31,11 @@ Possible settings:
  `Protocol`           | yes      | protocol that will be used to transfer data: `tcp` or `udp`                                                      | `tcp`
  `Entity`             | no       | default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname. If this setting is uncommented, then the entered value will be used as the entity                                                                    | `hostname`
  `Prefix`             | no       | global prefix for each metric, used to distinguish metrics                                                     | `collectd.`
- `Cache`             | no       | read plugin name to cache: all possible metrics will be counted                                                     | `-`
+ `Cache`             | no       | name of read plugin whose metrics will be cached: all possible metrics that are collected by this plugin will be included in the cache                                                     | `-`
  `Interval`             | no       | time in seconds during which same values that do not exceed the set threshold are not recorded, set in seconds  | `-`
  `Threshold`             | no       | deviation threshold from the cached value. If threshold is exceeded, then value is recorded, cache is dropped, interval is interrupted, set in percent (%)     | `-`
 
+Cache block is used to save disk space in the database.
 For example, we can receive the same values (like 0) from read plugins and it will be sent with the default collectd interval (every 10 seconds), but if the value doesn't change we can send it less frequently until it changes. With threshold parameter we can set allowed deviation from previous value (set in percent %). Interval is responsible for frequency at which values (that do not change beyond the threshold) are sent and we can be sure that data points (values) inside this interval are not changing.
 
 Example configuration file that demonstrates to use the main read plugins and their outputs:
