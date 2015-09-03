@@ -30,6 +30,10 @@
  *          Protocol "tcp"
  *          Entity "entity"
  *          Prefix "collectd."
+ *          <Cache "df">
+ *               Interval 300
+ *               Threshold 0
+ *          </Cache>
  *      </Node>
  *  </Plugin>
  */
@@ -101,9 +105,6 @@ struct wa_cache_s {
     double threshold;
 };
 
-//static struct wa_cache_s **wa_caches = NULL;
-//static int wa_num_caches = 0;
-
 struct wa_callback {
     int sock_fd;
 
@@ -131,10 +132,10 @@ struct wa_callback {
 };
 
 struct atsd_key_s {
-    char plugin[WA_MAX_LENGTH];
-    char plugin_instance[WA_MAX_LENGTH];
-    char type[WA_MAX_LENGTH];
-    char type_instance[WA_MAX_LENGTH];
+    char *plugin;
+    char *plugin_instance;
+    char *type;
+    char *type_instance;
 };
 typedef struct atsd_key_s atsd_key_t;
 
@@ -156,7 +157,7 @@ int compare_atsd_keys(atsd_key_t *atsd_key1, atsd_key_t *atsd_key2) {
 
 struct atsd_value_s {
     uint64_t time;
-    char value[WA_MAX_LENGTH];
+    char *value;
 };
 typedef struct atsd_value_s atsd_value_t;
 
@@ -215,10 +216,6 @@ static int wa_callback_init(struct wa_callback *cb) {
     cdtime_t now;
     int status;
 
-    const char *node = cb->node ? cb->node : WA_DEFAULT_NODE;
-    const char *service = cb->service ? cb->service : WA_DEFAULT_SERVICE;
-    const char *protocol = cb->protocol ? cb->protocol : WA_DEFAULT_PROTOCOL;
-
     char connerr[1024] = "";
 
     if (cb->sock_fd > 0)
@@ -238,17 +235,17 @@ static int wa_callback_init(struct wa_callback *cb) {
 #endif
     ai_hints.ai_family = AF_UNSPEC;
 
-    if (0 == strcasecmp("tcp", protocol))
+    if (0 == strcasecmp("tcp", cb->protocol))
         ai_hints.ai_socktype = SOCK_STREAM;
     else
         ai_hints.ai_socktype = SOCK_DGRAM;
 
     ai_list = NULL;
 
-    status = getaddrinfo(node, service, &ai_hints, &ai_list);
+    status = getaddrinfo(cb->node, cb->service, &ai_hints, &ai_list);
     if (status != 0) {
         ERROR("write_atsd plugin: getaddrinfo (%s, %s, %s) failed: %s",
-              node, service, protocol, gai_strerror(status));
+              cb->node, cb->service, cb->protocol, gai_strerror(status));
         return (-1);
     }
 
@@ -283,13 +280,13 @@ static int wa_callback_init(struct wa_callback *cb) {
             sstrerror(errno, connerr, sizeof(connerr));
         c_complain(LOG_ERR, &cb->init_complaint,
                    "write_atsd plugin: Connecting to %s:%s via %s failed. "
-                           "The last error was: %s", node, service, protocol, connerr);
+                           "The last error was: %s", cb->node, cb->service, cb->protocol, connerr);
         return (-1);
     }
     else {
         c_release(LOG_INFO, &cb->init_complaint,
                   "write_atsd plugin: Successfully connected to %s:%s via %s.",
-                  node, service, protocol);
+                  cb->node, cb->service, cb->protocol);
     }
 
     wa_reset_buffer(cb);
@@ -298,7 +295,13 @@ static int wa_callback_init(struct wa_callback *cb) {
 }
 
 static void wa_callback_free(void *data) {
+
+    int i;
     struct wa_callback *cb;
+
+    atsd_key_t *atsd_stored_key = NULL;
+    atsd_value_t *atsd_stored_value = NULL;
+
 
     if (data == NULL)
         return;
@@ -320,7 +323,25 @@ static void wa_callback_free(void *data) {
     sfree(cb->service);
     sfree(cb->prefix);
 
+    while (c_avl_pick(cb->cache_tree,(void *) atsd_stored_key,(void *) atsd_stored_value) == 0){
+
+        sfree(atsd_stored_key->plugin);
+        sfree(atsd_stored_key->plugin_instance);
+        sfree(atsd_stored_key->type);
+        sfree(atsd_stored_key->type_instance);
+        sfree(atsd_stored_key);
+
+        sfree(atsd_stored_value->value);
+        sfree(atsd_stored_value);
+    }
+
+
+    c_avl_destroy(cb->cache_tree);
     sfree(cb->cache_tree);
+
+    for (i=0; i<cb->wa_num_caches;i++){
+        sfree(cb->wa_caches[i]->name);
+    }
     sfree(cb->wa_caches);
 
     sfree(cb->entity);
@@ -378,6 +399,7 @@ static int wa_send_message(char const *message, struct wa_callback *cb) {
 
 static int check_cache_value(atsd_key_t *ak, atsd_value_t *av, struct wa_callback *cb){
 
+    atsd_key_t *atsd_stored_key = NULL;
     atsd_value_t *atsd_stored_value = NULL;
     double stored_value, cur_value;
     double cur_threshold;
@@ -390,7 +412,6 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av, struct wa_callbac
     for (q = 0; q < cb->wa_num_caches; q++) {
 
         if (strcasecmp(ak->plugin, cb->wa_caches[q]->name) == 0) {
-
             status = c_avl_get(cb->cache_tree, ak, (void *) &atsd_stored_value);
 
 
@@ -401,37 +422,40 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av, struct wa_callbac
                 cur_threshold = fabs(cur_value - stored_value);
 
                 if ((av->time - atsd_stored_value->time >= cb->wa_caches[q]->interval * 1000)
-                    || (cur_threshold >=  (cb->wa_caches[q]->threshold) * stored_value / 100)) {
+                    || (cur_threshold >  (cb->wa_caches[q]->threshold) * stored_value / 100)) {
 
-                    status = c_avl_remove(cb->cache_tree, ak, NULL, NULL);
+                    status = c_avl_remove(cb->cache_tree, ak, (void *) &atsd_stored_key, NULL);
+
+                    sfree(atsd_stored_key->plugin);
+                    sfree(atsd_stored_key->plugin_instance);
+                    sfree(atsd_stored_key->type);
+                    sfree(atsd_stored_key->type_instance);
+                    sfree(atsd_stored_key);
+
+                    sfree(atsd_stored_value->value);
+                    sfree(atsd_stored_value);
+
                     if (status != 0) {
                         ERROR("utils_vl_lookup: c_avl_remove(\"%s\") failed with status %i.",
                               ak->plugin, status);
-                        sfree (ak);
-                        return (status);
+                        return (-1);
                     }
+
                     status = c_avl_insert(cb->cache_tree, ak, av);
-                    assert(status <= 0); /* >0 => entry exists => race condition. */
                     if (status != 0) {
                         ERROR("utils_vl_lookup: c_avl_insert(\"%s\") failed with status %i.",
                               ak->plugin, status);
-                        sfree (ak);
-                        sfree (av);
-                        return (status);
+                        return (-1);
                     }
                 } else
                     same_value = 0;
-
             } else {
 
                 status = c_avl_insert(cb->cache_tree, ak, av);
-                assert(status <= 0); /* >0 => entry exists => race condition. */
                 if (status != 0) {
                     ERROR("utils_vl_lookup: c_avl_insert(\"%s\") failed with status %i.",
                           ak->plugin, status);
-                    sfree (ak);
-                    sfree (av);
-                    return (status);
+                    return (-1);
                 }
             }
             break;
@@ -470,19 +494,19 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
               ds->type, ds->ds_num, vl->values_len);
     }
 
-    char sendline[512];
+    char sendline[1024];
     char metric_name[512];
     cdtime_t now;
-    char *prefix = cb->prefix ? cb->prefix : WA_DEFAULT_PREFIX;
 
     char entity[WA_MAX_LENGTH];
     int ent_len = sizeof(entity);
 
     status = check_entity(entity, ent_len, cb->entity, vl->host);
 
-    if (status != 0) /* error message has been printed already. */
+    if (status != 0) /* error message has been printed already. */{
+        sfree(rates);
         return (status);
-
+    }
     now = cdtime();
     if ((now - cb->last_property_time) > WA_PROPERTY_INTERVAL) {
         cb->last_property_time = now;
@@ -491,11 +515,6 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
         struct utsname buf;
         ret = uname(&buf);
         if (!ret) {
-            printf("OperatingSystem name: %s\n", buf.sysname);
-            printf("Node(Host) name: %s\n", buf.nodename);
-            printf("Kernel Release Version: %s\n", buf.release);
-            printf("OS Version: %s\n", buf.version);
-            printf("Hardware: %s\n", buf.machine);
 
             ssnprintf(sendline, sizeof(sendline),
                       "property e:%s ms:%lu t:collectd-atsd v:host=%s v:OperatingSystem=\"%s\" v:Node=\"%s\" v:Kernel_Release_Version=\"%s\" v:OS_Version=\"%s\" v:Hardware=\"%s\"\n",
@@ -508,33 +527,49 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
         }
 
         status = wa_send_message(sendline, cb);
-        if (status != 0)
+        if (status != 0){
+            sfree(rates);
             return (status);
+        }
 
     }
 
+    char tmp[512];
+    char tv[50];
+    char ret[128];
+    size_t ret_len = sizeof(ret);
+
+    char *str_location;
+    char *c;
+
+    memset(ret, 0, ret_len);
+
+    atsd_key_t *ak;
+    atsd_value_t *av;
+    atsd_key_t *ak_copy;
+    atsd_value_t *av_copy;
+
+    int same_value;
+
     for (i = 0; i < ds->ds_num; i++) {
 
-        char tmp[1024];
-        char tv[50];
+
 
         if (isnan(rates[i]))
             continue;
 
-        char ret[512];
-        size_t ret_len = sizeof(ret);
 
-        memset(ret, 0, ret_len);
         status = format_value(ret, ret_len, i, ds, vl, rates);
-        if (status != 0)
+        if (status != 0){
+            sfree(rates);
             return (status);
+        }
 
 
-        int same_value = 1;
-        atsd_key_t *ak;
-        atsd_value_t *av;
+        same_value = 1;
 
-        sstrncpy(metric_name, prefix, sizeof(metric_name));
+
+        sstrncpy(metric_name, cb->prefix, sizeof(metric_name));
 //        ssnprintf(tv, sizeof(tv), "%i", c_avl_size(cb->cache_tree));
 //        strlcat(metric_name, tv, sizeof(metric_name));
 //        strlcat(metric_name, "_", sizeof(metric_name));
@@ -550,30 +585,35 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
 
                 ssnprintf(tv, sizeof(tv), "%f", (100 - atof(ret)));
 
-                ak = (atsd_key_t *) malloc(sizeof(*ak));
-                if (ak == NULL) {
-                    ERROR("write_atsd plugin: malloc failed.");
-                    return (-1);
+                if (cb->wa_num_caches > 0) {
+
+                    ak = (atsd_key_t *) malloc(sizeof(*ak));
+
+                    if (ak == NULL) {
+                        ERROR("write_atsd plugin: malloc failed.");
+                        return (-1);
+                    }
+                    memset(ak, '\0', sizeof(atsd_key_t));
+
+                    ak->plugin = strdup(vl->plugin);
+                    ak->plugin_instance = strdup(vl->plugin_instance);
+                    ak->type = strdup(vl->type);
+                    ak->type_instance = strdup("busy");
+
+                    av = (atsd_value_t *) malloc(sizeof(*av));
+                    if (av == NULL) {
+                        ERROR("write_atsd plugin: malloc failed.");
+                        return (-1);
+                    }
+                    memset(av, '\0', sizeof(atsd_value_t));
+                    av->value = strdup(tv);
+                    av->time = CDTIME_T_TO_MS(vl->time);
+
+                    ak_copy = ak;
+                    av_copy = av;
+                    same_value = check_cache_value(ak_copy, av_copy, cb);
                 }
-                memset(ak, '\0', sizeof(atsd_key_t));
-
-                sstrncpy(ak->plugin, vl->plugin, WA_MAX_LENGTH);
-                sstrncpy(ak->plugin_instance, vl->plugin_instance, WA_MAX_LENGTH);
-                sstrncpy(ak->type, vl->type, WA_MAX_LENGTH);
-                sstrncpy(ak->type_instance, "busy", WA_MAX_LENGTH);
-
-                av = (atsd_value_t *) malloc(sizeof(*av));
-                if (av == NULL) {
-                    ERROR("write_atsd plugin: malloc failed.");
-                    return (-1);
-                }
-                memset(av, '\0', sizeof(atsd_value_t));
-                sstrncpy(av->value, tv, WA_MAX_LENGTH);
-                av->time = CDTIME_T_TO_MS(vl->time);
-
-                same_value = check_cache_value(ak,av,cb);
-
-                if (same_value != 0) {
+                if (same_value > 0) {
                     if (vl->plugin_instance[0] != '\0') {
                         ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
                                   entity, CDTIME_T_TO_MS(vl->time), tmp, tv, vl->plugin_instance);
@@ -582,8 +622,19 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                                   entity, CDTIME_T_TO_MS(vl->time), tmp, tv);
                     }
                     status = wa_send_message(sendline, cb);
-                    if (status != 0) /* error message has been printed already. */
+                    if (status != 0){
+                        sfree(rates);
                         return (status);
+                    }
+                }else{
+                    sfree(ak->plugin);
+                    sfree(ak->plugin_instance);
+                    sfree(ak->type);
+                    sfree(ak->type_instance);
+                    sfree(ak);
+
+                    sfree(av->value);
+                    sfree(av);
                 };
 
 
@@ -637,7 +688,6 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
             if (strcasecmp(vl->plugin_instance, "root") != 0) {
                 strlcat(plugin_instance, vl->plugin_instance, sizeof(plugin_instance));
 
-                char *c;
                 for (c = plugin_instance; *c; c++) {
                     if (*c == '-')
                         *c = '/';
@@ -657,37 +707,50 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                     sstrncpy(tmp, metric_name, sizeof(tmp));
                     strlcat(tmp, "used-reserved.percent", sizeof(metric_name));
 
-                    ak = (atsd_key_t *) malloc(sizeof(*ak));
-                    if (ak == NULL) {
-                        ERROR("write_atsd plugin: malloc failed.");
-                        return (-1);
+                    if (cb->wa_num_caches > 0) {
+                        ak = (atsd_key_t *) malloc(sizeof(*ak));
+                        if (ak == NULL) {
+                            ERROR("write_atsd plugin: malloc failed.");
+                            return (-1);
+                        }
+                        memset(ak, '\0', sizeof(atsd_key_t));
+
+                        ak->plugin = strdup(vl->plugin);
+                        ak->plugin_instance = strdup(vl->plugin_instance);
+                        ak->type = strdup(vl->type);
+                        ak->type_instance = strdup("used-reserved.percent");
+
+                        av = (atsd_value_t *) malloc(sizeof(*av));
+                        if (av == NULL) {
+                            ERROR("write_atsd plugin: malloc failed.");
+                            return (-1);
+                        }
+                        memset(av, '\0', sizeof(atsd_value_t));
+                        av->value = strdup(tv);
+                        av->time = CDTIME_T_TO_MS(vl->time);
+
+                        ak_copy = ak;
+                        av_copy = av;
+                        same_value = check_cache_value(ak_copy, av_copy, cb);
                     }
-                    memset(ak, '\0', sizeof(atsd_key_t));
-
-                    sstrncpy(ak->plugin, vl->plugin, WA_MAX_LENGTH);
-                    sstrncpy(ak->plugin_instance, vl->plugin_instance, WA_MAX_LENGTH);
-                    sstrncpy(ak->type, vl->type, WA_MAX_LENGTH);
-                    sstrncpy(ak->type_instance, "used-reserved.percent", WA_MAX_LENGTH);
-
-                    av = (atsd_value_t *) malloc(sizeof(*av));
-                    if (av == NULL) {
-                        ERROR("write_atsd plugin: malloc failed.");
-                        return (-1);
-                    }
-                    memset(av, '\0', sizeof(atsd_value_t));
-                    sstrncpy(av->value, tv, WA_MAX_LENGTH);
-                    av->time = CDTIME_T_TO_MS(vl->time);
-
-                    same_value = check_cache_value(ak,av,cb);
-
-                    if (same_value != 0) {
+                    if (same_value > 0) {
                         ssnprintf(tv, sizeof(tv), "%f", (100 - atof(ret)));
                         ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
                                   entity, CDTIME_T_TO_MS(vl->time), tmp, tv, plugin_instance);
                         status = wa_send_message(sendline, cb);
-                        if (status != 0) /* error message has been printed already. */
+                        if (status != 0){
+                            sfree(rates);
                             return (status);
+                        }
+                    }else{
+                        sfree(ak->plugin);
+                        sfree(ak->plugin_instance);
+                        sfree(ak->type);
+                        sfree(ak->type_instance);
+                        sfree(ak);
 
+                        sfree(av->value);
+                        sfree(av);
                     };
                 }
 
@@ -702,36 +765,50 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
             else
                 ERROR("df plugin in write_atsd: unexpected value->type = %s: ", vl->type);
 
-            ak = (atsd_key_t *) malloc(sizeof(*ak));
-            if (ak == NULL) {
-                ERROR("write_atsd plugin: malloc failed.");
-                return (-1);
+            if (cb->wa_num_caches > 0) {
+                ak = (atsd_key_t *) malloc(sizeof(*ak));
+                if (ak == NULL) {
+                    ERROR("write_atsd plugin: malloc failed.");
+                    return (-1);
+                }
+                memset(ak, '\0', sizeof(atsd_key_t));
+
+                ak->plugin = strdup(vl->plugin);
+                ak->plugin_instance = strdup(vl->plugin_instance);
+                ak->type = strdup(vl->type);
+                ak->type_instance = strdup(vl->type_instance);
+
+                av = (atsd_value_t *) malloc(sizeof(*av));
+                if (av == NULL) {
+                    ERROR("write_atsd plugin: malloc failed.");
+                    return (-1);
+                }
+                memset(av, '\0', sizeof(atsd_value_t));
+                av->value = strdup(ret);
+                av->time = CDTIME_T_TO_MS(vl->time);
+
+                ak_copy = ak;
+                av_copy = av;
+                same_value = check_cache_value(ak_copy, av_copy, cb);
             }
-            memset(ak, '\0', sizeof(atsd_key_t));
-
-            sstrncpy(ak->plugin, vl->plugin, WA_MAX_LENGTH);
-            sstrncpy(ak->plugin_instance, vl->plugin_instance, WA_MAX_LENGTH);
-            sstrncpy(ak->type, vl->type, WA_MAX_LENGTH);
-            sstrncpy(ak->type_instance, vl->type_instance, WA_MAX_LENGTH);
-
-            av = (atsd_value_t *) malloc(sizeof(*av));
-            if (av == NULL) {
-                ERROR("write_atsd plugin: malloc failed.");
-                return (-1);
-            }
-            memset(av, '\0', sizeof(atsd_value_t));
-            sstrncpy(av->value, ret, WA_MAX_LENGTH);
-            av->time = CDTIME_T_TO_MS(vl->time);
-
-            same_value = check_cache_value(ak,av,cb);
-
-            if (same_value != 0) {
+            if (same_value > 0) {
                 ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
                           entity, CDTIME_T_TO_MS(vl->time), metric_name, ret, plugin_instance);
                 status = wa_send_message(sendline, cb);
-                if (status != 0) /* error message has been printed already. */
+                if (status != 0){
+                    sfree(rates);
                     return (status);
+                }
 
+            }else{
+                sfree(ak->plugin);
+                sfree(ak->plugin_instance);
+                sfree(ak->type);
+                sfree(ak->type_instance);
+                sfree(ak);
+
+                sfree(av->value);
+                sfree(av);
             };
 
             continue;
@@ -769,18 +846,13 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
         }
         else if (strcasecmp(vl->plugin, "aggregation") == 0) {
 
-            char substring[512];
-
-            sstrncpy(substring, vl->type, sizeof(substring));
-            strlcat(substring, "-", sizeof(substring));
-
-            char *str_location;
-
+            sstrncpy(tmp, vl->type, sizeof(tmp));
+            strlcat(tmp, "-", sizeof(tmp));
 
             sstrncpy(plugin_instance, vl->plugin_instance, sizeof(plugin_instance));
-            str_location = strstr(plugin_instance, substring);
+            str_location = strstr(plugin_instance, tmp);
 
-            sstrncpy(plugin_instance, str_location + strlen(substring), sizeof(plugin_instance));
+            sstrncpy(plugin_instance, str_location + strlen(tmp), sizeof(plugin_instance));
             strlcat(metric_name, vl->type, sizeof(metric_name));
             strlcat(metric_name, ".", sizeof(metric_name));
             strlcat(metric_name, vl->plugin, sizeof(metric_name));
@@ -796,36 +868,51 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 strlcat(tmp, ".", sizeof(tmp));
                 strlcat(tmp, str_location, sizeof(tmp));
 
-                ak = (atsd_key_t *) malloc(sizeof(*ak));
-                if (ak == NULL) {
-                    ERROR("write_atsd plugin: malloc failed.");
-                    return (-1);
+                if (cb->wa_num_caches > 0) {
+                    ak = (atsd_key_t *) malloc(sizeof(*ak));
+                    if (ak == NULL) {
+                        ERROR("write_atsd plugin: malloc failed.");
+                        return (-1);
+                    }
+                    memset(ak, '\0', sizeof(atsd_key_t));
+
+                    ak->plugin = strdup(vl->plugin);
+                    ak->plugin_instance = strdup(vl->plugin_instance);
+                    ak->type = strdup(vl->type);
+                    ak->type_instance = strdup("busy");
+
+                    av = (atsd_value_t *) malloc(sizeof(*av));
+                    if (av == NULL) {
+                        ERROR("write_atsd plugin: malloc failed.");
+                        return (-1);
+                    }
+                    memset(av, '\0', sizeof(atsd_value_t));
+                    av->value = strdup(tv);
+                    av->time = CDTIME_T_TO_MS(vl->time);
+
+                    ak_copy = ak;
+                    av_copy = av;
+                    same_value = check_cache_value(ak_copy, av_copy, cb);
                 }
-                memset(ak, '\0', sizeof(atsd_key_t));
-
-                sstrncpy(ak->plugin, vl->plugin, WA_MAX_LENGTH);
-                sstrncpy(ak->plugin_instance, vl->plugin_instance, WA_MAX_LENGTH);
-                sstrncpy(ak->type, vl->type, WA_MAX_LENGTH);
-                sstrncpy(ak->type_instance, "busy", WA_MAX_LENGTH);
-
-                av = (atsd_value_t *) malloc(sizeof(*av));
-                if (av == NULL) {
-                    ERROR("write_atsd plugin: malloc failed.");
-                    return (-1);
-                }
-                memset(av, '\0', sizeof(atsd_value_t));
-                sstrncpy(av->value, tv, WA_MAX_LENGTH);
-                av->time = CDTIME_T_TO_MS(vl->time);
-
-                same_value = check_cache_value(ak,av,cb);
-
-                if (same_value != 0) {
+                if (same_value > 0) {
                     ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s\n",
                               entity, CDTIME_T_TO_MS(vl->time), tmp, tv);
                     status = wa_send_message(sendline, cb);
-                    if (status != 0) /* error message has been printed already. */
+                    if (status != 0){
+                        sfree(rates);
                         return (status);
+                    }
+                }else{
+                    sfree(ak->plugin);
+                    sfree(ak->plugin_instance);
+                    sfree(ak->type);
+                    sfree(ak->type_instance);
+                    sfree(ak);
+
+                    sfree(av->value);
+                    sfree(av);
                 };
+
             }
 
             strlcat(metric_name, ".", sizeof(metric_name));
@@ -834,38 +921,50 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
             strlcat(metric_name, ".", sizeof(metric_name));
             strlcat(metric_name, str_location, sizeof(metric_name));
 
-            //-----
-            ak = (atsd_key_t *) malloc(sizeof(*ak));
-            if (ak == NULL) {
-                ERROR("write_atsd plugin: malloc failed.");
-                return (-1);
+            if (cb->wa_num_caches > 0) {
+                ak = (atsd_key_t *) malloc(sizeof(*ak));
+                if (ak == NULL) {
+                    ERROR("write_atsd plugin: malloc failed.");
+                    return (-1);
+                }
+                memset(ak, '\0', sizeof(atsd_key_t));
+
+                ak->plugin = strdup(vl->plugin);
+                ak->plugin_instance = strdup(vl->plugin_instance);
+                ak->type = strdup(vl->type);
+                ak->type_instance = strdup(vl->type_instance);
+
+                av = (atsd_value_t *) malloc(sizeof(*av));
+                if (av == NULL) {
+                    ERROR("write_atsd plugin: malloc failed.");
+                    return (-1);
+                }
+                memset(av, '\0', sizeof(atsd_value_t));
+                av->value = strdup(ret);
+                av->time = CDTIME_T_TO_MS(vl->time);
+
+                ak_copy = ak;
+                av_copy = av;
+                same_value = check_cache_value(ak_copy, av_copy, cb);
             }
-            memset(ak, '\0', sizeof(atsd_key_t));
-
-            sstrncpy(ak->plugin, vl->plugin, WA_MAX_LENGTH);
-            sstrncpy(ak->plugin_instance, vl->plugin_instance, WA_MAX_LENGTH);
-            sstrncpy(ak->type, vl->type, WA_MAX_LENGTH);
-            sstrncpy(ak->type_instance, vl->type_instance, WA_MAX_LENGTH);
-
-            av = (atsd_value_t *) malloc(sizeof(*av));
-            if (av == NULL) {
-                ERROR("write_atsd plugin: malloc failed.");
-                return (-1);
-            }
-            memset(av, '\0', sizeof(atsd_value_t));
-            sstrncpy(av->value, ret, WA_MAX_LENGTH);
-            av->time = CDTIME_T_TO_MS(vl->time);
-
-            same_value = check_cache_value(ak,av,cb);
-
-            if (same_value != 0) {
+            if (same_value > 0) {
                 ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s\n",
                           entity, CDTIME_T_TO_MS(vl->time), metric_name, ret);
                 status = wa_send_message(sendline, cb);
-                if (status != 0) /* error message has been printed already. */
+                if (status != 0){
+                    sfree(rates);
                     return (status);
+                }
+            }else{
+                sfree(ak->plugin);
+                sfree(ak->plugin_instance);
+                sfree(ak->type);
+                sfree(ak->type_instance);
+                sfree(ak);
+
+                sfree(av->value);
+                sfree(av);
             };
-//----------------------------------------------------------------------------------------------------------------------
 
             continue;
 
@@ -885,35 +984,35 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 strlcat(metric_name, ".", sizeof(metric_name));
                 strlcat(metric_name, ds->ds[i].name, sizeof(metric_name));
             }
-
-
         }
 
-        //-----
-        ak = (atsd_key_t *) malloc(sizeof(*ak));
-        if (ak == NULL) {
-            ERROR("write_atsd plugin: malloc failed.");
-            return (-1);
+        if (cb->wa_num_caches > 0) {
+            ak = (atsd_key_t *) malloc(sizeof(*ak));
+            if (ak == NULL) {
+                ERROR("write_atsd plugin: malloc failed.");
+                return (-1);
+            }
+            memset(ak, '\0', sizeof(atsd_key_t));
+
+            ak->plugin = strdup(vl->plugin);
+            ak->plugin_instance = strdup(vl->plugin_instance);
+            ak->type = strdup(vl->type);
+            ak->type_instance = strdup(vl->type_instance);
+
+            av = (atsd_value_t *) malloc(sizeof(*av));
+            if (av == NULL) {
+                ERROR("write_atsd plugin: malloc failed.");
+                return (-1);
+            }
+            memset(av, '\0', sizeof(atsd_value_t));
+            av->value = strdup(ret);
+            av->time = CDTIME_T_TO_MS(vl->time);
+
+            ak_copy = ak;
+            av_copy = av;
+            same_value = check_cache_value(ak_copy, av_copy, cb);
         }
-        memset(ak, '\0', sizeof(atsd_key_t));
-
-        sstrncpy(ak->plugin, vl->plugin, WA_MAX_LENGTH);
-        sstrncpy(ak->plugin_instance, vl->plugin_instance, WA_MAX_LENGTH);
-        sstrncpy(ak->type, vl->type, WA_MAX_LENGTH);
-        sstrncpy(ak->type_instance, vl->type_instance, WA_MAX_LENGTH);
-
-        av = (atsd_value_t *) malloc(sizeof(*av));
-        if (av == NULL) {
-            ERROR("write_atsd plugin: malloc failed.");
-            return (-1);
-        }
-        memset(av, '\0', sizeof(atsd_value_t));
-        sstrncpy(av->value, ret, WA_MAX_LENGTH);
-        av->time = CDTIME_T_TO_MS(vl->time);
-
-        same_value = check_cache_value(ak,av,cb);
-
-        if (same_value != 0) {
+        if (same_value > 0) {
             if (vl->plugin_instance[0] != '\0') {
                 ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
                           entity, CDTIME_T_TO_MS(vl->time), metric_name, ret, vl->plugin_instance);
@@ -922,12 +1021,23 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                           entity, CDTIME_T_TO_MS(vl->time), metric_name, ret);
             }
             status = wa_send_message(sendline, cb);
-            if (status != 0) /* error message has been printed already. */
-                return (status);        };
-//----------------------------------------------------------------------------------------------------------------------
+            if (status != 0){
+                sfree(rates);
+                return (status);
+            }
+        }else{
+            sfree(ak->plugin);
+            sfree(ak->plugin_instance);
+            sfree(ak->type);
+            sfree(ak->type_instance);
+            sfree(ak);
+
+            sfree(av->value);
+            sfree(av);
+        };
 
     }
-
+    sfree (rates);
     return (0);
 }
 
@@ -948,11 +1058,56 @@ static int wa_write(const data_set_t *ds, const value_list_t *vl,
     return (status);
 }
 
+static int wa_config_cache(struct wa_callback *cb, oconfig_item_t * child){
+
+    int q, status;
+    struct wa_cache_s *nc, wc;
+    struct wa_cache_s **tmp;
+    memset(&wc, 0, sizeof(struct wa_cache_s));
+
+    status = cf_util_get_string(child, &wc.name);
+    if (status != 0)
+        return status;
+
+    for (q = 0; q < child->children_num; q++) {
+        oconfig_item_t *grandchild = child->children + q;
+
+        if (strcasecmp("Interval", grandchild->key) == 0)
+            cf_util_get_int(grandchild, &wc.interval);
+        else if (strcasecmp("Threshold", grandchild->key) == 0)
+            cf_util_get_double(grandchild, &wc.threshold);
+        else {
+            ERROR("write_atsd plugin: Invalid configuration "
+                          "option: %s.", grandchild->key);
+            status = -1;
+        }
+
+        if (status != 0)
+            break;
+    }
+
+    tmp = realloc(cb->wa_caches, (cb->wa_num_caches + 1) * sizeof(*(cb->wa_caches)));
+    if (tmp == NULL) {
+        return ENOMEM;
+    }
+    cb->wa_caches = tmp;
+
+    nc = malloc(sizeof(*nc));
+    if (!nc) {
+        return ENOMEM;
+    }
+
+    memcpy(nc, &wc, sizeof(*nc));
+    cb->wa_caches[cb->wa_num_caches++] = nc;
+
+    return (0);
+}
+
 static int wa_config_node(oconfig_item_t * ci) {
     struct wa_callback *cb;
     user_data_t user_data;
     char callback_name[DATA_MAX_NAME_LEN];
-    int i, q;
+    int i;
     int status = 0;
 
     cb = malloc(sizeof(*cb));
@@ -960,18 +1115,22 @@ static int wa_config_node(oconfig_item_t * ci) {
         ERROR("write_atsd plugin: malloc failed.");
         return (-1);
     }
+
+
     memset(cb, 0, sizeof(*cb));
     cb->sock_fd = -1;
     cb->name = NULL;
-    cb->node = NULL;
-    cb->service = NULL;
-    cb->protocol = NULL;
-    cb->prefix = NULL;
+    cb->node = strdup(WA_DEFAULT_NODE);
+    cb->service = strdup(WA_DEFAULT_SERVICE);
+    cb->protocol = strdup(WA_DEFAULT_PROTOCOL);
+    cb->prefix = strdup(WA_DEFAULT_PREFIX);
     cb->entity = NULL;
     cb->wa_num_caches = 0;
     cb->wa_caches = NULL;
+    cb->cache_tree = NULL;
     cb->cache_tree = c_avl_create((void *) compare_atsd_keys);
-//    cb->cache_tree = c_avl_create ((void *) strcmp);
+
+
 
     if (cb->cache_tree == NULL) {
         ERROR("utils_vl_lookup: c_avl_create failed.");
@@ -1004,46 +1163,7 @@ static int wa_config_node(oconfig_item_t * ci) {
         else if (strcasecmp("Entity", child->key) == 0)
             cf_util_get_string(child, &cb->entity);
         else if (strcasecmp("Cache", child->key) == 0) {
-
-            struct wa_cache_s *nc, wc;
-            struct wa_cache_s **tmp;
-            memset(&wc, 0, sizeof(struct wa_cache_s));
-
-            status = cf_util_get_string(child, &wc.name);
-            if (status != 0)
-                return status;
-
-            for (q = 0; q < child->children_num; q++) {
-                oconfig_item_t *grandchild = child->children + q;
-
-                if (strcasecmp("Interval", grandchild->key) == 0)
-                    cf_util_get_int(grandchild, &wc.interval);
-                else if (strcasecmp("Threshold", grandchild->key) == 0)
-                    cf_util_get_double(grandchild, &wc.threshold);
-                else {
-                    ERROR("write_atsd plugin: Invalid configuration "
-                                  "option: %s.", grandchild->key);
-                    status = -1;
-                }
-
-                if (status != 0)
-                    break;
-            }
-
-            tmp = realloc(cb->wa_caches, (cb->wa_num_caches + 1) * sizeof(*(cb->wa_caches)));
-            if (tmp == NULL) {
-                return ENOMEM;
-            }
-            cb->wa_caches = tmp;
-
-            nc = malloc(sizeof(*nc));
-            if (!nc) {
-                return ENOMEM;
-            }
-
-            memcpy(nc, &wc, sizeof(*nc));
-            cb->wa_caches[cb->wa_num_caches++] = nc;
-
+            wa_config_cache(cb,child);
         }
         else {
             ERROR("write_atsd plugin: Invalid configuration "
