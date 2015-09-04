@@ -517,12 +517,12 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
         if (!ret) {
 
             ssnprintf(sendline, sizeof(sendline),
-                      "property e:%s ms:%llu t:collectd-atsd v:host=%s v:OperatingSystem=\"%s\" v:Node=\"%s\" v:Kernel_Release_Version=\"%s\" v:OS_Version=\"%s\" v:Hardware=\"%s\"\n",
+                      "property e:%s ms:%lu t:collectd-atsd v:host=%s v:OperatingSystem=\"%s\" v:Node=\"%s\" v:Kernel_Release_Version=\"%s\" v:OS_Version=\"%s\" v:Hardware=\"%s\"\n",
                       entity, CDTIME_T_TO_MS(vl->time), vl->host, buf.sysname, buf.nodename, buf.release, buf.version,
                       buf.machine);
         }
         else {
-            ssnprintf(sendline, sizeof(sendline), "property e:%s ms:%llu t:collectd-atsd v:host=%s\n",
+            ssnprintf(sendline, sizeof(sendline), "property e:%s ms:%lu t:collectd-atsd v:host=%s\n",
                       entity, CDTIME_T_TO_MS(vl->time), vl->host);
         }
 
@@ -615,10 +615,10 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 }
                 if (same_value > 0) {
                     if (vl->plugin_instance[0] != '\0') {
-                        ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%llu m:%s=%s t:instance=%s\n",
+                        ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
                                   entity, CDTIME_T_TO_MS(vl->time), tmp, tv, vl->plugin_instance);
                     } else {
-                        ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%llu m:%s=%s\n",
+                        ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s\n",
                                   entity, CDTIME_T_TO_MS(vl->time), tmp, tv);
                     }
                     status = wa_send_message(sendline, cb);
@@ -735,7 +735,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                     }
                     if (same_value > 0) {
                         ssnprintf(tv, sizeof(tv), "%f", (100 - atof(ret)));
-                        ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%llu m:%s=%s t:instance=%s\n",
+                        ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
                                   entity, CDTIME_T_TO_MS(vl->time), tmp, tv, plugin_instance);
                         status = wa_send_message(sendline, cb);
                         if (status != 0){
@@ -792,7 +792,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 same_value = check_cache_value(ak_copy, av_copy, cb);
             }
             if (same_value > 0) {
-                ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%llu m:%s=%s t:instance=%s\n",
+                ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
                           entity, CDTIME_T_TO_MS(vl->time), metric_name, ret, plugin_instance);
                 status = wa_send_message(sendline, cb);
                 if (status != 0){
@@ -895,7 +895,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                     same_value = check_cache_value(ak_copy, av_copy, cb);
                 }
                 if (same_value > 0) {
-                    ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%llu m:%s=%s\n",
+                    ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s\n",
                               entity, CDTIME_T_TO_MS(vl->time), tmp, tv);
                     status = wa_send_message(sendline, cb);
                     if (status != 0){
@@ -948,7 +948,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 same_value = check_cache_value(ak_copy, av_copy, cb);
             }
             if (same_value > 0) {
-                ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%llu m:%s=%s\n",
+                ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s\n",
                           entity, CDTIME_T_TO_MS(vl->time), metric_name, ret);
                 status = wa_send_message(sendline, cb);
                 if (status != 0){
@@ -1014,10 +1014,10 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
         }
         if (same_value > 0) {
             if (vl->plugin_instance[0] != '\0') {
-                ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%llu m:%s=%s t:instance=%s\n",
+                ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s t:instance=%s\n",
                           entity, CDTIME_T_TO_MS(vl->time), metric_name, ret, vl->plugin_instance);
             } else {
-                ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%llu m:%s=%s\n",
+                ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%lu m:%s=%s\n",
                           entity, CDTIME_T_TO_MS(vl->time), metric_name, ret);
             }
             status = wa_send_message(sendline, cb);
