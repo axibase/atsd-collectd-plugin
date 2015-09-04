@@ -544,8 +544,8 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
 
     memset(ret, 0, ret_len);
 
-    atsd_key_t *ak;
-    atsd_value_t *av;
+    atsd_key_t *ak = NULL;
+    atsd_value_t *av = NULL;
     atsd_key_t *ak_copy;
     atsd_value_t *av_copy;
 
