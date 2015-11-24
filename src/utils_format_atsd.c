@@ -131,6 +131,7 @@ int check_entity(char *ret, const int ret_len, const char *entity, const char *h
 
     if (entity == NULL) {
         sstrncpy(ret, host, ret_len);
+        sfree(host);
         return 0;
     }
 
@@ -141,16 +142,19 @@ int check_entity(char *ret, const int ret_len, const char *entity, const char *h
         while (i < e_length) {
             if (entity[i] == ' ') {
                 sstrncpy(ret, host, ret_len);
+                sfree(host);
                 return 0;
             }
             i++;
         }
     } else {
         sstrncpy(ret, host, ret_len);
+        sfree(host);
         return 0;
     }
 
     sstrncpy(ret, entity, ret_len);
+    sfree(host);
     return 0;
 }
 
