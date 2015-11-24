@@ -30,6 +30,7 @@
  *          Protocol "tcp"
  *          Entity "entity"
  *          Prefix "collectd."
+ *          ShortHostname false
  *          <Cache "df">
  *               Interval 300
  *               Threshold 0
@@ -1164,7 +1165,7 @@ static int wa_config_node(oconfig_item_t * ci) {
             cf_util_get_string(child, &cb->prefix);
         else if (strcasecmp("Entity", child->key) == 0)
             cf_util_get_string(child, &cb->entity);
-        else if (strcasecmp ("short_hostname", child->key) == 0)
+        else if (strcasecmp ("ShortHostname", child->key) == 0)
             cf_util_get_boolean (child, &cb->short_hostname);
         else if (strcasecmp("Cache", child->key) == 0) {
             wa_config_cache(cb,child);

@@ -10,7 +10,7 @@ Synopsis
 #         Host "127.0.0.1"
 #         Port 8081
 #         Protocol "tcp"
-#         short_hostname true
+#         ShortHostname true
 #         <Cache "cpu">
 #              Interval 95
 #              Threshold 5
