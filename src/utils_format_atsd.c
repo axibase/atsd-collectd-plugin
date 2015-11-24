@@ -115,9 +115,10 @@ int format_value(char *ret, size_t ret_len, int i, const data_set_t *ds, const v
 
 int check_entity(char *ret, const int ret_len, const char *entity, const char *host_name, _Bool short_hostname) {
 
-    char host[100];
+    char *host;
     char *c;
-    sstrncpy(host, host_name, sizeof(host));
+
+    host = strdup(host_name);
 
     if (short_hostname) {
         for (c = host; *c; c++) {
