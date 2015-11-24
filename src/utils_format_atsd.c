@@ -89,9 +89,9 @@ int format_value(char *ret, size_t ret_len, int i, const data_set_t *ds, const v
     if (ds->ds[i].type == DS_TYPE_GAUGE) {
         BUFFER_ADD (GAUGE_FORMAT, vl->values[i].gauge);
     }
-    else if (rates != NULL){
+    else if (rates != NULL) {
         if (rates[i] == 0) {
-        BUFFER_ADD ("%i", (int)rates[i]);
+            BUFFER_ADD ("%i", (int) rates[i]);
         } else {
             BUFFER_ADD ("%f", rates[i]);
         }
@@ -113,7 +113,20 @@ int format_value(char *ret, size_t ret_len, int i, const data_set_t *ds, const v
     return (0);
 }
 
-int check_entity(char *ret, const int ret_len, const char *entity, const char *host) {
+int check_entity(char *ret, const int ret_len, const char *entity, const char *host_name, _Bool short_hostname) {
+
+    char host[100];
+    char *c;
+    sstrncpy(host, host_name, sizeof(host));
+
+    if (short_hostname) {
+        for (c = host; *c; c++) {
+            if (*c == '.' && c != host) {
+                *c = '\0';
+                break;
+            }
+        }
+    }
 
     if (entity == NULL) {
         sstrncpy(ret, host, ret_len);

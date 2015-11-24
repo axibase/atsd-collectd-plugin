@@ -115,6 +115,7 @@ struct wa_callback {
     char *protocol;
     char *prefix;
     char *entity;
+    _Bool short_hostname;
 
     char send_buf[WA_SEND_BUF_SIZE];
     size_t send_buf_free;
@@ -501,7 +502,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
     char entity[WA_MAX_LENGTH];
     int ent_len = sizeof(entity);
 
-    status = check_entity(entity, ent_len, cb->entity, vl->host);
+    status = check_entity(entity, ent_len, cb->entity, vl->host, cb->short_hostname);
 
     if (status != 0) /* error message has been printed already. */{
         sfree(rates);
@@ -1125,6 +1126,7 @@ static int wa_config_node(oconfig_item_t * ci) {
     cb->protocol = strdup(WA_DEFAULT_PROTOCOL);
     cb->prefix = strdup(WA_DEFAULT_PREFIX);
     cb->entity = NULL;
+    cb->short_hostname = 0;
     cb->wa_num_caches = 0;
     cb->wa_caches = NULL;
     cb->cache_tree = NULL;
@@ -1162,6 +1164,8 @@ static int wa_config_node(oconfig_item_t * ci) {
             cf_util_get_string(child, &cb->prefix);
         else if (strcasecmp("Entity", child->key) == 0)
             cf_util_get_string(child, &cb->entity);
+        else if (strcasecmp ("short_hostname", child->key) == 0)
+            cf_util_get_boolean (child, &cb->short_hostname);
         else if (strcasecmp("Cache", child->key) == 0) {
             wa_config_cache(cb,child);
         }
