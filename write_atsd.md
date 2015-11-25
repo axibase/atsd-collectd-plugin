@@ -35,7 +35,7 @@ Possible settings:
  `Cache`             | no       | name of read plugin whose metrics will be cached: all possible metrics that are collected by this plugin will be included in the cache                                                     | `-`
  `Interval`             | no       | time in seconds during which same values that do not exceed the set threshold are not recorded, set in seconds  | `-`
  `Threshold`             | no       | deviation threshold from the cached value. If threshold is exceeded, then value is recorded, cache is dropped, interval is interrupted, set in percent (%)     | `-`
- `ShortHostname`             | no       | enable using shortened machine hostname (part before first dot) instead of entity when the one doesn't not specified or contains whitespaces | `false`
+ `ShortHostname`             | no       | convert entity from fully qualified domain name to short name | `false`
 
 Cache block is used to save disk space in the database.
 For example, we can receive the same values (like 0) from read plugins and it will be sent with the default collectd interval (every 10 seconds), but if the value doesn't change we can send it less frequently until it changes. With threshold parameter we can set allowed deviation from previous value (set in percent %). Interval is responsible for frequency at which values (that do not change beyond the threshold) are sent and we can be sure that data points (values) inside this interval are not changing.
