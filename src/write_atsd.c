@@ -585,7 +585,12 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 sstrncpy(tmp, metric_name, sizeof(tmp));
                 strlcat(tmp, "busy", sizeof(metric_name));
 
-                ssnprintf(tv, sizeof(tv), "%f", (100 - atof(ret)));
+                float busy = 100.0 - atof(ret);
+                if (busy - (int) busy >= 0.01){
+                    ssnprintf(tv, sizeof(tv), "%.2g", busy);
+                } else {
+                    ssnprintf(tv, sizeof(tv), "%.0f", busy);
+                }
 
                 if (cb->wa_num_caches > 0) {
 
@@ -709,6 +714,13 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                     sstrncpy(tmp, metric_name, sizeof(tmp));
                     strlcat(tmp, "used-reserved.percent", sizeof(metric_name));
 
+                    float busy = 100.0 - atof(ret);
+                    if (busy - (int) busy >= 0.01){
+                        ssnprintf(tv, sizeof(tv), "%.2g", busy);
+                    } else {
+                        ssnprintf(tv, sizeof(tv), "%.0f", busy);
+                    }
+
                     if (cb->wa_num_caches > 0) {
                         ak = (atsd_key_t *) malloc(sizeof(*ak));
                         if (ak == NULL) {
@@ -736,7 +748,6 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                         same_value = check_cache_value(ak_copy, av_copy, cb);
                     }
                     if (same_value > 0) {
-                        ssnprintf(tv, sizeof(tv), "%f", (100 - atof(ret)));
                         ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s t:instance=%s\n",
                                   entity, CDTIME_T_TO_MS(vl->time), tmp, tv, plugin_instance);
                         status = wa_send_message(sendline, cb);
@@ -865,7 +876,12 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 sstrncpy(tmp, metric_name, sizeof(tmp));
                 strlcat(tmp, ".busy", sizeof(metric_name));
 
-                ssnprintf(tv, sizeof(tv), "%f", (100 - atof(ret)));
+                float busy = 100.0 - atof(ret);
+                if (busy - (int) busy >= 0.01){
+                    ssnprintf(tv, sizeof(tv), "%.2g", busy);
+                } else {
+                    ssnprintf(tv, sizeof(tv), "%.0f", busy);
+                }
 
                 strlcat(tmp, ".", sizeof(tmp));
                 strlcat(tmp, str_location, sizeof(tmp));

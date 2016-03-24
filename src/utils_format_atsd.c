@@ -93,7 +93,7 @@ int format_value(char *ret, size_t ret_len, int i, const data_set_t *ds, const v
         if (rates[i] == 0) {
             BUFFER_ADD ("%i", (int) rates[i]);
         } else {
-            BUFFER_ADD ("%.2f", rates[i]);
+          BUFFER_ADD ("%f", rates[i]);
         }
     }
     else if (ds->ds[i].type == DS_TYPE_COUNTER)
