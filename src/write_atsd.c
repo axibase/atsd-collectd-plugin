@@ -585,12 +585,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 sstrncpy(tmp, metric_name, sizeof(tmp));
                 strlcat(tmp, "busy", sizeof(metric_name));
 
-                float busy = 100.0 - atof(ret);
-                if (busy - (int) busy >= 0.01){
-                    ssnprintf(tv, sizeof(tv), "%.2g", busy);
-                } else {
-                    ssnprintf(tv, sizeof(tv), "%.0f", busy);
-                }
+                ssnprintf(tv, sizeof(tv), "%.2g", (100.0 - atof(ret)));
 
                 if (cb->wa_num_caches > 0) {
 
@@ -714,12 +709,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                     sstrncpy(tmp, metric_name, sizeof(tmp));
                     strlcat(tmp, "used-reserved.percent", sizeof(metric_name));
 
-                    float busy = 100.0 - atof(ret);
-                    if (busy - (int) busy >= 0.01){
-                        ssnprintf(tv, sizeof(tv), "%.2g", busy);
-                    } else {
-                        ssnprintf(tv, sizeof(tv), "%.0f", busy);
-                    }
+                    ssnprintf(tv, sizeof(tv), "%.2g", (100.0 - atof(ret)));
 
                     if (cb->wa_num_caches > 0) {
                         ak = (atsd_key_t *) malloc(sizeof(*ak));
@@ -876,12 +866,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 sstrncpy(tmp, metric_name, sizeof(tmp));
                 strlcat(tmp, ".busy", sizeof(metric_name));
 
-                float busy = 100.0 - atof(ret);
-                if (busy - (int) busy >= 0.01){
-                    ssnprintf(tv, sizeof(tv), "%.2g", busy);
-                } else {
-                    ssnprintf(tv, sizeof(tv), "%.0f", busy);
-                }
+                ssnprintf(tv, sizeof(tv), "%.2g", (100.0 - atof(ret)));
 
                 strlcat(tmp, ".", sizeof(tmp));
                 strlcat(tmp, str_location, sizeof(tmp));
