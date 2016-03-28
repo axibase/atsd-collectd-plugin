@@ -1335,7 +1335,7 @@
 
 #<Plugin write_atsd>
 #     <Node "example">
-#         Host "localhost"
+#         Host "atsd_server"
 #         Port 8081
 #         Protocol "tcp"
 #     </Node>

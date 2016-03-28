@@ -11,11 +11,11 @@ Synopsis
 #         Port 8081
 #         Protocol "tcp"
 #         ShortHostname true
-#         <Cache "cpu">
-#              Interval 95
-#              Threshold 5
-#         </Cache>
 #         <Cache "df">
+#              Interval 300
+#              Threshold 0
+#         </Cache>
+#         <Cache "disk">
 #              Interval 300
 #              Threshold 0
 #         </Cache>
@@ -89,8 +89,10 @@ LoadPlugin vmem
 </Plugin>
 
 # The following configuration collects information about the network traffic,
-# packets per second and errors from all network interfaces.
+# packets per second and errors from all network interfaces exclude beginning with lo* and veth*.
 <Plugin interface>
+    Interface "/^lo*/"
+    Interface "/^veth*/"
     IgnoreSelected true
 </Plugin>
 
@@ -117,11 +119,9 @@ LoadPlugin vmem
          Host "localhost"
          Port 8081
          Protocol "tcp"
-         Prefix "collectd."
-         Entity "nurswgsvl007"
-         <Cache "cpu">
-              Interval 95
-              Threshold 5
+         <Cache "df">
+              Interval 300
+              Threshold 1
          </Cache>
          <Cache "disk">
               Interval 300
