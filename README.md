@@ -1,8 +1,24 @@
 The ATSD Write plugin sends metrics to [Axibase Time-Series Database](https://axibase.com/products/axibase-time-series-database/).
 
-Collectd binary releases can be found [here](https://github.com/axibase/atsd-collectd-plugin/releases/tag/5.5.0-atsd-binary).
+Collectd with write_atsd plugin binary releases can be found [here](https://github.com/axibase/atsd-collectd-plugin/releases/tag/5.5.0-atsd-binary).
 
-Synopsis
+Download corresponding binary and install using following steps:
+
+```
+sudo dpkg -i ubuntu_1*.04_amd64.deb
+sudo sed -i 's/atsd_server/localhost/g' /opt/collectd/etc/collectd.conf
+sudo service collectd-axibase start
+```
+
+Statistics will be send to tcp://localhost:8081, to check it, run
+
+```
+nc -lk 8081
+> series e:nurswgsvl007 ms:1437658049000 m:collectd.cpu.aggregation.idle.average=99.500014
+> series e:nurswgsvl007 ms:1437658049000 m:collectd.contextswitch.contextswitch=68.128436
+```
+
+Configuration synopsis
 
 ```
 #LoadPlugin write_atsd
