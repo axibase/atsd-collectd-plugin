@@ -1,5 +1,7 @@
 The ATSD Write plugin sends metrics to [Axibase Time-Series Database](https://axibase.com/products/axibase-time-series-database/).
 
+Collectd binary releases can be found [here](https://github.com/axibase/atsd-collectd-plugin/releases/tag/5.5.0-atsd-binary).
+
 Synopsis
 
 ```
