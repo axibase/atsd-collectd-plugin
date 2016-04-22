@@ -1148,19 +1148,25 @@ static int wa_config_node(oconfig_item_t * ci) {
     for (i = 0; i < ci->children_num; i++) {
         oconfig_item_t *child = ci->children + i;
 
-        if (strcasecmp("Host", child->key) == 0)
-            cf_util_get_string(child, &cb->node);
-        else if (strcasecmp("Port", child->key) == 0)
-            cf_util_get_service(child, &cb->service);
-        else if (strcasecmp("Protocol", child->key) == 0) {
-            cf_util_get_string(child, &cb->protocol);
+        if (strcasecmp("atsdurl", child->key) == 0) {
 
+            char ip[100];
+            char port[20];
+            char protocol[20];
+
+            if (sscanf(child->values[0].value.string, "%99[^:]://%99[^:]:%99[^\n]", protocol, ip, port) == 3) {
+                cb->node = strdup(ip);
+                cb->service = strdup(port);
+                cb->protocol = strdup(protocol);
             if (strcasecmp("UDP", cb->protocol) != 0 &&
                 strcasecmp("TCP", cb->protocol) != 0) {
                 ERROR("write_atsd plugin: Unknown protocol (%s)",
                       cb->protocol);
                 status = -1;
             }
+            }
+
+
         }
         else if (strcasecmp("Prefix", child->key) == 0)
             cf_util_get_string(child, &cb->prefix);
@@ -1225,3 +1231,5 @@ void module_register(void) {
     plugin_register_complex_config("write_atsd", wa_complex_config);
 }
 /* vim: set sw=4 ts=4 sts=4 tw=78 et : */
+
+
