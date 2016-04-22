@@ -1150,23 +1150,14 @@ static int wa_config_node(oconfig_item_t * ci) {
 
         if (strcasecmp("atsdurl", child->key) == 0) {
 
-            char ip[100];
-            char port[20];
-            char protocol[20];
-
-            if (sscanf(child->values[0].value.string, "%99[^:]://%99[^:]:%99[^\n]", protocol, ip, port) == 3) {
-                cb->node = strdup(ip);
-                cb->service = strdup(port);
-                cb->protocol = strdup(protocol);
-            if (strcasecmp("UDP", cb->protocol) != 0 &&
-                strcasecmp("TCP", cb->protocol) != 0) {
-                ERROR("write_atsd plugin: Unknown protocol (%s)",
-                      cb->protocol);
-                status = -1;
+            if (sscanf(child->values[0].value.string, "%99[^:]://%99[^:]:%99[^\n]", cb->protocol, cb->node, cb->service) == 3) {
+                if (strcasecmp("UDP", cb->protocol) != 0 &&
+                    strcasecmp("TCP", cb->protocol) != 0) {
+                    ERROR("write_atsd plugin: Unknown protocol (%s)",
+                          cb->protocol);
+                    status = -1;
+                }
             }
-            }
-
-
         }
         else if (strcasecmp("Prefix", child->key) == 0)
             cf_util_get_string(child, &cb->prefix);
