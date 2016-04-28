@@ -5970,7 +5970,6 @@ AC_PLUGIN([xmms],                [$with_libxmms],           [XMMS statistics])
 AC_PLUGIN([zfs_arc],             [$plugin_zfs_arc],         [ZFS ARC statistics])
 AC_PLUGIN([zone],                [$plugin_zone],            [Solaris container statistics])
 AC_PLUGIN([zookeeper],           [yes],                     [Zookeeper statistics])
->>>>>>> af2f301138fed32705d865ce1c364ceb8ab3ddc7
 
 dnl Default configuration file
 # Load either syslog or logfile
