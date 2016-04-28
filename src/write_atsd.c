@@ -25,9 +25,7 @@
  *
  * <Plugin write_atsd>
  *      <Node "default">
- *          Host "127.0.0.1"
- *          Port 8081
- *          Protocol "tcp"
+ *          AtsdUrl "atsd_url"
  *          Entity "entity"
  *          Prefix "collectd."
  *          ShortHostname false
