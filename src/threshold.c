@@ -70,7 +70,7 @@ static int ut_threshold_add (const threshold_t *th)
     return (-1);
   }
 
-  th_copy = (threshold_t *) malloc (sizeof (threshold_t));
+  th_copy = malloc (sizeof (*th_copy));
   if (th_copy == NULL)
   {
     sfree (name_copy);
@@ -78,7 +78,6 @@ static int ut_threshold_add (const threshold_t *th)
     return (-1);
   }
   memcpy (th_copy, th, sizeof (threshold_t));
-  th_ptr = NULL;
 
   DEBUG ("ut_threshold_add: Adding entry `%s'", name);
 
@@ -868,10 +867,11 @@ static int ut_missing (const value_list_t *vl,
   return (0);
 } /* }}} int ut_missing */
 
-int ut_config (oconfig_item_t *ci)
+static int ut_config (oconfig_item_t *ci)
 { /* {{{ */
   int i;
   int status = 0;
+  int old_size = c_avl_size (threshold_tree);
 
   threshold_t th;
 
@@ -915,7 +915,9 @@ int ut_config (oconfig_item_t *ci)
       break;
   }
 
-  if (c_avl_size (threshold_tree) > 0) {
+  /* register callbacks if this is the first time we see a valid config */
+  if ((old_size == 0) && (c_avl_size (threshold_tree) > 0))
+  {
     plugin_register_missing ("threshold", ut_missing,
         /* user data = */ NULL);
     plugin_register_write ("threshold", ut_check_threshold,

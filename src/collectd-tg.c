@@ -40,6 +40,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <math.h>
+#include <sys/time.h>
 
 #include "utils_heap.h"
 
@@ -155,13 +156,12 @@ static lcc_value_list_t *create_value_list (void) /* {{{ */
   lcc_value_list_t *vl;
   int host_num;
 
-  vl = malloc (sizeof (*vl));
+  vl = calloc (1, sizeof (*vl));
   if (vl == NULL)
   {
-    fprintf (stderr, "malloc failed.\n");
+    fprintf (stderr, "calloc failed.\n");
     return (NULL);
   }
-  memset (vl, 0, sizeof (*vl));
 
   vl->values = calloc (/* nmemb = */ 1, sizeof (*vl->values));
   if (vl->values == NULL)
@@ -200,6 +200,7 @@ static lcc_value_list_t *create_value_list (void) /* {{{ */
   strncpy (vl->identifier.type,
       (vl->values_types[0] == LCC_TYPE_GAUGE) ? "gauge" : "derive",
       sizeof (vl->identifier.type));
+  vl->identifier.type[sizeof (vl->identifier.type) - 1] = 0;
   snprintf (vl->identifier.type_instance, sizeof (vl->identifier.type_instance),
       "ti%li", random ());
 
@@ -366,7 +367,7 @@ int main (int argc, char **argv) /* {{{ */
   else
   {
     lcc_server_t *srv;
-    
+
     srv = lcc_server_create (net, conf_destination, conf_service);
     if (srv == NULL)
     {

@@ -24,8 +24,12 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "testing.h"
 #include "common.h"
+#include "testing.h"
+
+#if HAVE_LIBKSTAT
+kstat_ctl_t *kc;
+#endif /* HAVE_LIBKSTAT */
 
 DEF_TEST(sstrncpy)
 {
@@ -86,7 +90,6 @@ DEF_TEST(sstrdup)
   EXPECT_EQ_STR ("collectd", ptr);
 
   sfree(ptr);
-  OK(ptr == NULL);
 
   ptr = sstrdup (NULL);
   OK(ptr == NULL);

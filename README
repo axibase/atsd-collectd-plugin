@@ -772,8 +772,7 @@ Prerequisites
 
   * libprotobuf-c, protoc-c (optional)
     Used by the `pinba' plugin to generate a parser for the network packets
-    sent by the Pinba PHP extension, and by the `write_riemann' plugin to
-    generate events to be sent to a Riemann server.
+    sent by the Pinba PHP extension.
     <http://code.google.com/p/protobuf-c/>
 
   * libpython (optional)
@@ -848,6 +847,10 @@ Prerequisites
      `varnish' plugin.
      <http://varnish-cache.org>
 
+  * riemann-c-client (optional)
+     For the `write_riemann' plugin.
+     <https://github.com/algernon/riemann-c-client>
+
 Configuring / Compiling / Installing
 ------------------------------------
 
@@ -901,18 +904,19 @@ Configuring with libjvm
   library checks succeed.
 
   If this doesn't work for you, you have the possibility to specify CPP-flags,
-  C-flags and LD-flags for the ‘Java’ plugin by hand, using the following three
-  (environment) variables:
+  C-flags, LD-flags and LIBS for the ‘Java’ plugin by hand, using the
+  following environment variables:
 
     - JAVA_CPPFLAGS
     - JAVA_CFLAGS
     - JAVA_LDFLAGS
+    - JAVA_LIBS
 
   For example (shortened for demonstration purposes):
 
     ./configure JAVA_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/linux"
 
-  Adding "-ljvm" to the JAVA_LDFLAGS is done automatically, you don't have to
+  Adding "-ljvm" to JAVA_LIBS is done automatically, you don't have to
   do that.
 
 Generating the configure script
@@ -929,6 +933,7 @@ To generate the `configure` script, you'll need the following dependencies:
 - bison
 - libtool
 - libtool-ltdl
+- pkg-config
 
 The `build.sh' script takes no arguments.
 

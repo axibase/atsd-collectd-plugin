@@ -219,7 +219,7 @@ static int email_config (const char *key, const char *value)
 static void type_list_incr (type_list_t *list, char *name, int incr)
 {
 	if (NULL == list->head) {
-		list->head = (type_t *)smalloc (sizeof (type_t));
+		list->head = smalloc (sizeof (*list->head));
 
 		list->head->name  = sstrdup (name);
 		list->head->value = incr;
@@ -236,7 +236,7 @@ static void type_list_incr (type_list_t *list, char *name, int incr)
 		}
 
 		if (NULL == ptr) {
-			list->tail->next = (type_t *)smalloc (sizeof (type_t));
+			list->tail->next = smalloc (sizeof (*list->tail->next));
 			list->tail = list->tail->next;
 
 			list->tail->name  = sstrdup (name);
@@ -305,8 +305,11 @@ static void *collect (void *arg)
 						break;
 				continue;
 			}
+			if (len < 3) { /* [a-z] ':' '\n' */
+				continue;
+			}
 
-			line[len - 1] = '\0';
+			line[len - 1] = 0;
 
 			log_debug ("collect: line = '%s'", line);
 
@@ -329,12 +332,12 @@ static void *collect (void *arg)
 				bytes = atoi (tmp);
 
 				pthread_mutex_lock (&count_mutex);
-				type_list_incr (&list_count, type, 1);
+				type_list_incr (&list_count, type, /* increment = */ 1);
 				pthread_mutex_unlock (&count_mutex);
 
 				if (bytes > 0) {
 					pthread_mutex_lock (&size_mutex);
-					type_list_incr (&list_size, type, bytes);
+					type_list_incr (&list_size, type, /* increment = */ bytes);
 					pthread_mutex_unlock (&size_mutex);
 				}
 			}
@@ -346,14 +349,17 @@ static void *collect (void *arg)
 				pthread_mutex_unlock (&score_mutex);
 			}
 			else if ('c' == line[0]) { /* c:<type1>[,<type2>,...] */
-				char *ptr  = NULL;
-				char *type = strtok_r (line + 2, ",", &ptr);
+				char *dummy = line + 2;
+				char *endptr = NULL;
+				char *type;
 
-				do {
-					pthread_mutex_lock (&check_mutex);
-					type_list_incr (&list_check, type, 1);
-					pthread_mutex_unlock (&check_mutex);
-				} while (NULL != (type = strtok_r (NULL, ",", &ptr)));
+				pthread_mutex_lock (&check_mutex);
+				while ((type = strtok_r (dummy, ",", &endptr)) != NULL)
+				{
+					dummy = NULL;
+					type_list_incr (&list_check, type, /* increment = */ 1);
+				}
+				pthread_mutex_unlock (&check_mutex);
 			}
 			else {
 				log_err ("collect: unknown type '%c'", line[0]);
@@ -383,8 +389,8 @@ static void *open_connection (void __attribute__((unused)) *arg)
 {
 	struct sockaddr_un addr;
 
-	char *path  = (NULL == sock_file) ? SOCK_PATH : sock_file;
-	char *group = (NULL == sock_group) ? COLLECTD_GRP_NAME : sock_group;
+	const char *path  = (NULL == sock_file) ? SOCK_PATH : sock_file;
+	const char *group = (NULL == sock_group) ? COLLECTD_GRP_NAME : sock_group;
 
 	/* create UNIX socket */
 	errno = 0;
@@ -476,10 +482,10 @@ static void *open_connection (void __attribute__((unused)) *arg)
 		available_collectors = max_conns;
 
 		collectors =
-			(collector_t **)smalloc (max_conns * sizeof (collector_t *));
+			smalloc (max_conns * sizeof (*collectors));
 
 		for (i = 0; i < max_conns; ++i) {
-			collectors[i] = (collector_t *)smalloc (sizeof (collector_t));
+			collectors[i] = smalloc (sizeof (*collectors[i]));
 			collectors[i]->socket = NULL;
 
 			if (0 != (err = plugin_thread_create (&collectors[i]->thread,
@@ -509,28 +515,41 @@ static void *open_connection (void __attribute__((unused)) *arg)
 
 		pthread_mutex_unlock (&available_mutex);
 
-		do {
+		while (42) {
 			errno = 0;
-			if (-1 == (remote = accept (connector_socket, NULL, NULL))) {
-				if (EINTR != errno) {
-					char errbuf[1024];
-					disabled = 1;
-					close (connector_socket);
-					connector_socket = -1;
-					log_err ("accept() failed: %s",
-							sstrerror (errno, errbuf, sizeof (errbuf)));
-					pthread_exit ((void *)1);
-				}
-			}
-		} while (EINTR == errno);
 
-		connection = (conn_t *)smalloc (sizeof (conn_t));
+			remote = accept (connector_socket, NULL, NULL);
+			if (remote == -1) {
+				char errbuf[1024];
+
+				if (errno == EINTR)
+					continue;
+
+				disabled = 1;
+				close (connector_socket);
+				connector_socket = -1;
+				log_err ("accept() failed: %s",
+						 sstrerror (errno, errbuf, sizeof (errbuf)));
+				pthread_exit ((void *)1);
+			}
+
+			/* access() succeeded. */
+			break;
+		}
+
+		connection = calloc (1, sizeof (*connection));
+		if (connection == NULL)
+		{
+			close (remote);
+			continue;
+		}
 
 		connection->socket = fdopen (remote, "r");
 		connection->next   = NULL;
 
 		if (NULL == connection->socket) {
 			close (remote);
+			sfree (connection);
 			continue;
 		}
 
@@ -675,7 +694,7 @@ static void copy_type_list (type_list_t *l1, type_list_t *l2)
 	for (ptr1 = l1->head, ptr2 = l2->head; NULL != ptr1;
 			ptr1 = ptr1->next, last = ptr2, ptr2 = ptr2->next) {
 		if (NULL == ptr2) {
-			ptr2 = (type_t *)smalloc (sizeof (type_t));
+			ptr2 = smalloc (sizeof (*ptr2));
 			ptr2->name = NULL;
 			ptr2->next = NULL;
 

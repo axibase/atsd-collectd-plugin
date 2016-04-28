@@ -128,7 +128,7 @@ enum plginst_field {
 };
 
 static enum plginst_field plugin_instance_format[PLGINST_MAX_FIELDS] =
-    { plginst_name };
+    { plginst_none };
 
 /* InterfaceFormat. */
 enum if_field {
@@ -327,8 +327,8 @@ lv_init (void)
 {
     if (virInitialize () != 0)
         return -1;
-
-	return 0;
+    else
+        return 0;
 }
 
 static int
@@ -417,8 +417,8 @@ lv_config (const char *key, const char *value)
             else if (strcasecmp (fields[i], "uuid") == 0)
                 hostname_format[i] = hf_uuid;
             else {
-                sfree (value_copy);
                 ERROR (PLUGIN_NAME " plugin: unknown HostnameFormat field: %s", fields[i]);
+                sfree (value_copy);
                 return -1;
             }
         }
@@ -449,13 +449,16 @@ lv_config (const char *key, const char *value)
         }
 
         for (i = 0; i < n; ++i) {
-            if (strcasecmp (fields[i], "name") == 0)
+            if (strcasecmp (fields[i], "none") == 0) {
+                plugin_instance_format[i] = plginst_none;
+                break;
+            } else if (strcasecmp (fields[i], "name") == 0)
                 plugin_instance_format[i] = plginst_name;
             else if (strcasecmp (fields[i], "uuid") == 0)
                 plugin_instance_format[i] = plginst_uuid;
             else {
+                ERROR (PLUGIN_NAME " plugin: unknown PluginInstanceFormat field: %s", fields[i]);
                 sfree (value_copy);
-                ERROR (PLUGIN_NAME " plugin: unknown HostnameFormat field: %s", fields[i]);
                 return -1;
             }
         }
@@ -683,8 +686,8 @@ refresh_lists (void)
         int *domids;
 
         /* Get list of domains. */
-        domids = malloc (sizeof (int) * n);
-        if (domids == 0) {
+        domids = malloc (sizeof (*domids) * n);
+        if (domids == NULL) {
             ERROR (PLUGIN_NAME " plugin: malloc failed.");
             return -1;
         }
@@ -830,7 +833,7 @@ refresh_lists (void)
 }
 
 static void
-free_domains ()
+free_domains (void)
 {
     int i;
 
@@ -863,7 +866,7 @@ add_domain (virDomainPtr dom)
 }
 
 static void
-free_block_devices ()
+free_block_devices (void)
 {
     int i;
 
@@ -903,7 +906,7 @@ add_block_device (virDomainPtr dom, const char *path)
 }
 
 static void
-free_interface_devices ()
+free_interface_devices (void)
 {
     int i;
 

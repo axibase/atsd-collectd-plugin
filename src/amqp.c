@@ -199,11 +199,11 @@ static char *camqp_strerror (camqp_config_t *conf, /* {{{ */
     switch (r.reply_type)
     {
         case AMQP_RESPONSE_NORMAL:
-            sstrncpy (buffer, "Success", sizeof (buffer));
+            sstrncpy (buffer, "Success", buffer_size);
             break;
 
         case AMQP_RESPONSE_NONE:
-            sstrncpy (buffer, "Missing RPC reply type", sizeof (buffer));
+            sstrncpy (buffer, "Missing RPC reply type", buffer_size);
             break;
 
         case AMQP_RESPONSE_LIBRARY_EXCEPTION:
@@ -215,7 +215,7 @@ static char *camqp_strerror (camqp_config_t *conf, /* {{{ */
                 return (sstrerror (r.library_error, buffer, buffer_size));
 #endif
             else
-                sstrncpy (buffer, "End of stream", sizeof (buffer));
+                sstrncpy (buffer, "End of stream", buffer_size);
             break;
 
         case AMQP_RESPONSE_SERVER_EXCEPTION:
@@ -736,7 +736,7 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
     if (tmp == NULL)
     {
         ERROR ("amqp plugin: realloc failed.");
-        camqp_config_free (conf);
+        sfree (subscriber_threads);
         return (ENOMEM);
     }
     subscriber_threads = tmp;
@@ -750,7 +750,6 @@ static int camqp_subscribe_init (camqp_config_t *conf) /* {{{ */
         char errbuf[1024];
         ERROR ("amqp plugin: pthread_create failed: %s",
                 sstrerror (status, errbuf, sizeof (errbuf)));
-        camqp_config_free (conf);
         return (status);
     }
 
@@ -925,15 +924,14 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
     int status;
     int i;
 
-    conf = malloc (sizeof (*conf));
+    conf = calloc (1, sizeof (*conf));
     if (conf == NULL)
     {
-        ERROR ("amqp plugin: malloc failed.");
+        ERROR ("amqp plugin: calloc failed.");
         return (ENOMEM);
     }
 
     /* Initialize "conf" {{{ */
-    memset (conf, 0, sizeof (*conf));
     conf->publish = publish;
     conf->name = NULL;
     conf->format = CAMQP_FORMAT_COMMAND;

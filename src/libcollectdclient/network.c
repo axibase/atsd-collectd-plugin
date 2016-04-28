@@ -89,6 +89,7 @@ static int server_close_socket (lcc_server_t *srv) /* {{{ */
     return (0);
 
   close (srv->fd);
+  srv->fd = -1;
   free (srv->sa);
   srv->sa = NULL;
   srv->sa_len = 0;
@@ -106,12 +107,6 @@ static void int_server_destroy (lcc_server_t *srv) /* {{{ */
   server_close_socket (srv);
 
   next = srv->next;
-
-  if (srv->fd >= 0)
-  {
-    close (srv->fd);
-    srv->fd = -1;
-  }
 
   free (srv->node);
   free (srv->service);
@@ -154,7 +149,6 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
 
     if (ai_ptr->ai_family == AF_INET)
     {
-
       struct sockaddr_in *addr = (struct sockaddr_in *) ai_ptr->ai_addr;
       int optname;
 
@@ -163,9 +157,8 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
       else
         optname = IP_TTL;
 
-      setsockopt (srv->fd, IPPROTO_IP, optname,
-          &srv->ttl,
-          sizeof (srv->ttl));
+      status = setsockopt (srv->fd, IPPROTO_IP, optname,
+          &srv->ttl, sizeof (srv->ttl));
     }
     else if (ai_ptr->ai_family == AF_INET6)
     {
@@ -178,9 +171,15 @@ static int server_open_socket (lcc_server_t *srv) /* {{{ */
       else
         optname = IPV6_UNICAST_HOPS;
 
-      setsockopt (srv->fd, IPPROTO_IPV6, optname,
-          &srv->ttl,
-          sizeof (srv->ttl));
+      status = setsockopt (srv->fd, IPPROTO_IPV6, optname,
+          &srv->ttl, sizeof (srv->ttl));
+    }
+    if (status != 0)
+    {
+      /* setsockopt failed. */
+      close (srv->fd);
+      srv->fd = -1;
+      continue;
     }
 
     srv->sa = malloc (ai_ptr->ai_addrlen);
@@ -272,10 +271,9 @@ lcc_network_t *lcc_network_create (void) /* {{{ */
 {
   lcc_network_t *net;
 
-  net = malloc (sizeof (*net));
+  net = calloc (1, sizeof (*net));
   if (net == NULL)
     return (NULL);
-  memset (net, 0, sizeof (*net));
 
   net->servers = NULL;
 
@@ -300,10 +298,9 @@ lcc_server_t *lcc_server_create (lcc_network_t *net, /* {{{ */
   if (service == NULL)
     service = NET_DEFAULT_PORT;
 
-  srv = malloc (sizeof (*srv));
+  srv = calloc (1, sizeof (*srv));
   if (srv == NULL)
     return (NULL);
-  memset (srv, 0, sizeof (*srv));
 
   srv->fd = -1;
   srv->security_level = NONE;

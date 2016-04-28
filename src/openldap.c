@@ -31,6 +31,11 @@
 #include "plugin.h"
 #include "configfile.h"
 
+#if defined(__APPLE__)
+#pragma clang diagnostic push
+#pragma clang diagnostic warning "-Wdeprecated-declarations"
+#endif
+
 #include <lber.h>
 #include <ldap.h>
 
@@ -125,7 +130,7 @@ static int cldap_init_host (cldap_t *st) /* {{{ */
 		cred.bv_len = 0;
 	}
 
-	rc = ldap_sasl_bind_s (st->ld, st->binddn, LDAP_SASL_SIMPLE, &cred, 
+	rc = ldap_sasl_bind_s (st->ld, st->binddn, LDAP_SASL_SIMPLE, &cred,
 			NULL, NULL, NULL);
 	if (rc != LDAP_SUCCESS)
 	{
@@ -548,13 +553,12 @@ static int cldap_config_add (oconfig_item_t *ci) /* {{{ */
 	int i;
 	int status;
 
-	st = malloc (sizeof (*st));
+	st = calloc (1, sizeof (*st));
 	if (st == NULL)
 	{
-		ERROR ("openldap plugin: malloc failed.");
+		ERROR ("openldap plugin: calloc failed.");
 		return (-1);
 	}
-	memset (st, 0, sizeof (*st));
 
 	status = cf_util_get_string (ci, &st->name);
 	if (status != 0)
@@ -698,3 +702,7 @@ void module_register (void) /* {{{ */
 	plugin_register_complex_config ("openldap", cldap_config);
 	plugin_register_init ("openldap", cldap_init);
 } /* }}} void module_register */
+
+#if defined(__APPLE__)
+#pragma clang diagnostic pop
+#endif

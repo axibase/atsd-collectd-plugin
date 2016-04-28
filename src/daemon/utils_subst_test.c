@@ -24,19 +24,23 @@
  *   Florian octo Forster <octo at collectd.org>
  */
 
-#include "testing.h"
-#include "collectd.h"
 #include "common.h" /* for STATIC_ARRAY_SIZE */
+#include "collectd.h"
+#include "testing.h"
 #include "utils_subst.h"
+
+#if HAVE_LIBKSTAT
+kstat_ctl_t *kc;
+#endif /* HAVE_LIBKSTAT */
 
 DEF_TEST(subst)
 {
   struct {
-    char *str;
+    const char *str;
     int off1;
     int off2;
-    char *rplmt;
-    char *want;
+    const char *rplmt;
+    const char *want;
   } cases[] = {
     {"foo_____bar", 3, 8, " - ", "foo - bar"}, /* documentation example */
     {"foo bar", 0, 2, "m",     "mo bar"},    /* beginning, shorten */
@@ -91,7 +95,10 @@ DEF_TEST(subst)
 DEF_TEST(subst_string)
 {
   struct {
-    char *str;          char *srch; char *rplmt; char *want;
+    const char *str;
+    const char *srch;
+    const char *rplmt;
+    const char *want;
   } cases[] = {
     {"Hello %{name}",    "%{name}", "world", "Hello world"},
     {"abcccccc",         "abc",     "cab",   "ccccccab"},

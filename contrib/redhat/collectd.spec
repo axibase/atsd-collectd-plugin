@@ -62,13 +62,13 @@
 %{?el7:%global _has_lvm2app_h 1}
 %{?el7:%global _has_libudev 1}
 %{?el7:%global _has_recent_librrd 1}
-%{?el7:%global _has_varnish4 1}
-%{?el7:%global _has_broken_libmemcached 1}
 %{?el7:%global _has_iproute 1}
 %{?el7:%global _has_atasmart 1}
 %{?el7:%global _has_hiredis 1}
 %{?el7:%global _has_asm_msr_index 1}
 %{?el7:%global _has_libmosquitto 1}
+%{?el7:%global _has_libmodbus 1}
+%{?el7:%global _has_xmms 1}
 
 # plugins enabled by default
 %define with_aggregation 0%{!?_without_aggregation:1}
@@ -117,7 +117,7 @@
 %define with_madwifi 0%{!?_without_madwifi:1}
 %define with_mbmon 0%{!?_without_mbmon:1}
 %define with_md 0%{!?_without_md:1}
-%define with_memcachec 0%{!?_without_memcachec:0%{!?_has_broken_libmemcached:1}}
+%define with_memcachec 0%{!?_without_memcachec:1}
 %define with_memcached 0%{!?_without_memcached:1}
 %define with_memory 0%{!?_without_memory:1}
 %define with_multimeter 0%{!?_without_multimeter:1}
@@ -130,6 +130,7 @@
 %define with_nginx 0%{!?_without_nginx:1}
 %define with_notify_desktop 0%{!?_without_notify_desktop:1}
 %define with_notify_email 0%{!?_without_notify_email:1}
+%define with_notify_nagios 0%{!?_without_notify_nagios:1}
 %define with_ntpd 0%{!?_without_ntpd:1}
 %define with_numa 0%{!?_without_numa:1}
 %define with_nut 0%{!?_without_nut:1}
@@ -167,7 +168,7 @@
 %define with_uptime 0%{!?_without_uptime:1}
 %define with_users 0%{!?_without_users:1}
 %define with_uuid 0%{!?_without_uuid:1}
-%define with_varnish 0%{!?_without_varnish:0%{!?_has_varnish4:1}}
+%define with_varnish 0%{!?_without_varnish:1}
 %define with_vmem 0%{!?_without_vmem:1}
 %define with_vserver 0%{!?_without_vserver:1}
 %define with_wireless 0%{!?_without_wireless:1}
@@ -175,9 +176,10 @@
 %define with_write_http 0%{!?_without_write_http:1}
 %define with_write_log 0%{!?_without_write_log:1}
 %define with_write_redis 0%{!?_without_write_redis:0%{?_has_hiredis}}
-%define with_write_riemann 0%{!?_without_write_riemann:1}
+%define with_write_riemann 0%{!?_without_write_riemann:0%{?_has_recent_riemann_c_client}}
 %define with_write_sensu 0%{!?_without_write_sensu:1}
 %define with_write_tsdb 0%{!?_without_write_tsdb:1}
+%define with_xmms 0%{!?_without_xmms:0%{?_has_xmms}}
 %define with_zfs_arc 0%{!?_without_zfs_arc:1}
 %define with_zookeeper 0%{!?_without_zookeeper:1}
 
@@ -214,14 +216,14 @@
 %define with_write_kafka 0%{!?_without_write_kafka:0}
 # plugin write_mongodb disabled, requires libmongoc
 %define with_write_mongodb 0%{!?_without_write_mongodb:0}
-# plugin xmms disabled, requires xmms
-%define with_xmms 0%{!?_without_xmms:0}
+# plugin xencpu disabled, requires xen-devel from non-default repo
+%define with_xencpu 0%{!?_without_xencpu:0}
 # plugin zone disabled, requires Solaris
 %define with_zone 0%{!?_without_zone:0}
 
 Summary:	statistics collection and monitoring daemon
 Name:		collectd
-Version:	5.5.0
+Version:	5.5.1
 Release:	1%{?dist}
 URL:		http://collectd.org
 Source:		http://collectd.org/files/%{name}-%{version}.tar.bz2
@@ -789,6 +791,26 @@ BuildRequires:	protobuf-c-devel
 The riemann plugin submits values to Riemann, an event stream processor.
 %endif
 
+%if %{with_xencpu}
+%package xencpu
+Summary:	xencpu plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	xen-devel
+%description xencpu
+The xencpu plugin collects CPU statistics from Xen.
+%endif
+
+%if %{with_xmms}
+%package xmms
+Summary:	XMMS plugin for collectd
+Group:		System Environment/Daemons
+Requires:	%{name}%{?_isa} = %{version}-%{release}
+BuildRequires:	xmms-devel
+%description xmms
+The xmms plugin collects information from the XMMS music player.
+%endif
+
 %package collection3
 Summary:	Web-based viewer for collectd
 Group:		System Environment/Daemons
@@ -1233,6 +1255,12 @@ Collectd utilities
 %define _with_notify_email --disable-notify_email
 %endif
 
+%if %{with_notify_nagios}
+%define _with_notify_nagios --enable-notify_nagios
+%else
+%define _with_notify_nagios --disable-notify_nagios
+%endif
+
 %if %{with_ntpd}
 %define _with_ntpd --enable-ntpd
 %else
@@ -1579,6 +1607,12 @@ Collectd utilities
 %define _with_write_tsdb --disable-write_tsdb
 %endif
 
+%if %{with_xencpu}
+%define _with_xencpu --enable-xencpu
+%else
+%define _with_xencpu --disable-xencpu
+%endif
+
 %if %{with_xmms}
 %define _with_xmms --enable-xmms
 %else
@@ -1697,6 +1731,7 @@ Collectd utilities
 	%{?_with_write_kafka} \
 	%{?_with_write_mongodb} \
 	%{?_with_write_redis} \
+	%{?_with_xencpu} \
 	%{?_with_xmms} \
 	%{?_with_zfs_arc} \
 	%{?_with_zone} \
@@ -1711,6 +1746,7 @@ Collectd utilities
 	%{?_with_memory} \
 	%{?_with_network} \
 	%{?_with_nfs} \
+	%{?_with_notify_nagios} \
 	%{?_with_ntpd} \
 	%{?_with_numa} \
 	%{?_with_olsrd} \
@@ -1977,6 +2013,9 @@ fi
 %if %{with_nfs}
 %{_libdir}/%{name}/nfs.so
 %endif
+%if %{with_notify_nagios}
+%{_libdir}/%{name}/notify_nagios.so
+%endif
 %if %{with_ntpd}
 %{_libdir}/%{name}/ntpd.so
 %endif
@@ -2083,9 +2122,9 @@ fi
 %{_includedir}/collectd/network_buffer.h
 %{_includedir}/collectd/lcc_features.h
 %{_libdir}/pkgconfig/libcollectdclient.pc
+%{_libdir}/libcollectdclient.so
 
 %files -n libcollectdclient
-%{_libdir}/libcollectdclient.so
 %{_libdir}/libcollectdclient.so.*
 
 %files -n collectd-utils
@@ -2356,6 +2395,16 @@ fi
 %{_libdir}/%{name}/write_riemann.so
 %endif
 
+%if %{with_xencpu}
+%files xencpu
+%{_libdir}/%{name}/xencpu.so
+%endif
+
+%if %{with_xmms}
+%files xmms
+%{_libdir}/%{name}/xmms.so
+%endif
+
 %files collection3
 %{_localstatedir}/www/collection3
 %{_sysconfdir}/httpd/conf.d/collection3.conf
@@ -2370,8 +2419,8 @@ fi
 %changelog
 #* TODO: next feature release changelog
 #- New upstream version
-#- New plugins enabled by default: mqtt
-#- New plugins disabled by default: zone
+#- New plugins enabled by default: mqtt, notify_nagios
+#- New plugins disabled by default: zone, xencpu
 #
 * Wed May 27 2015 Marc Fournier <marc.fournier@camptocamp.com> 5.5.0-1
 - New upstream version
@@ -2385,11 +2434,12 @@ fi
 - Install collectdctl, collectd-tg and collectd-nagios in collectd-utils.rpm
 - Add build-dependency on libcap-devel
 
-* Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.0-1
+* Mon Aug 19 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.4.2-1
 - New upstream version
 - Build netlink plugin by default
 - Enable cgroups, lvm and statsd plugins
 - Enable (but don't build by default) mic, aquaero and sigrok plugins
+- Enable modbus, memcachec and xmms plugins on RHEL7
 
 * Tue Aug 06 2013 Marc Fournier <marc.fournier@camptocamp.com> 5.3.1-1
 - New upstream version

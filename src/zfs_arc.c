@@ -41,22 +41,69 @@
 
 typedef	llist_t kstat_t;
 
-static long long get_zfs_value(kstat_t *zfs_stats  __attribute__((unused)),
-		char *name)
+static int put_zfs_value (kstat_t *ksp, char const *k, value_t v)
 {
 	llentry_t *e;
+	char *k_copy;
+	value_t *v_copy;
 
-	e = llist_search (zfs_stats, name);
+	k_copy = strdup (k);
+	if (k_copy == NULL)
+		return ENOMEM;
+
+	v_copy = malloc (sizeof (*v_copy));
+	if (v_copy == NULL)
+	{
+		sfree (k_copy);
+		return ENOMEM;
+	}
+	*v_copy = v;
+
+	e = llentry_create (k_copy, v_copy);
 	if (e == NULL)
 	{
-		ERROR ("zfs_arc plugin: `llist_search` failed for key: '%s'.", name);
+		sfree (v_copy);
+		sfree (k_copy);
+		return ENOMEM;
+	}
+
+	llist_append (ksp, e);
+	return 0;
+}
+
+static long long get_zfs_value(kstat_t *ksp, const char *key)
+{
+	llentry_t *e;
+	value_t *v;
+
+	e = llist_search (ksp, key);
+	if (e == NULL)
+	{
+		ERROR ("zfs_arc plugin: `llist_search` failed for key: '%s'.", key);
 		return (-1);
 	}
 
-	return (*(long long int*)e->value);
+	v = e->value;
+	return ((long long) v->derive);
 }
 
-#elif !defined(__FreeBSD__) // Solaris
+static void free_zfs_values (kstat_t *ksp)
+{
+	llentry_t *e;
+
+	if (ksp == NULL)
+		return;
+
+	for (e = llist_head (ksp); e != NULL; e = e->next)
+	{
+		sfree (e->key);
+		sfree (e->value);
+	}
+
+	llist_destroy (ksp);
+}
+
+#elif defined(KERNEL_SOLARIS)
 extern kstat_ctl_t *kc;
 
 static long long get_zfs_value(kstat_t *ksp, char *name)
@@ -64,7 +111,7 @@ static long long get_zfs_value(kstat_t *ksp, char *name)
 
 	return (get_kstat_value(ksp, name));
 }
-#else // FreeBSD
+#elif defined(KERNEL_FREEBSD)
 #include <sys/types.h>
 #include <sys/sysctl.h>
 
@@ -172,75 +219,47 @@ static int za_read (void)
 	value_t  l2_io[2];
 	kstat_t	 *ksp	= NULL;
 
-#if KERNEL_LINUX
-	long long int *llvalues = NULL;
-	char file_contents[1024 * 10];
-	char *fields[3];
-	int numfields;
-	ssize_t len;
+#if defined(KERNEL_LINUX)
+	FILE *fh;
+	char buffer[1024];
+
+	fh = fopen (ZOL_ARCSTATS_FILE, "r");
+	if (fh == NULL)
+	{
+		char errbuf[1024];
+		ERROR ("zfs_arc plugin: Opening \"%s\" failed: %s", ZOL_ARCSTATS_FILE,
+		       sstrerror (errno, errbuf, sizeof (errbuf)));
+		return (-1);
+	}
 
 	ksp = llist_create ();
 	if (ksp == NULL)
 	{
 		ERROR ("zfs_arc plugin: `llist_create' failed.");
+		fclose (fh);
 		return (-1);
 	}
 
-	len = read_file_contents (ZOL_ARCSTATS_FILE, file_contents, sizeof(file_contents));
-	if (len > 1)
+	while (fgets (buffer, sizeof (buffer), fh) != NULL)
 	{
+		char *fields[3];
+		value_t v;
+		int status;
 
-		int i=0;
-		char *pnl = file_contents;
-		char *pnnl;
+		status = strsplit (buffer, fields, STATIC_ARRAY_SIZE (fields));
+		if (status != 3)
+			continue;
 
-		file_contents[len] = '\0';
+		status = parse_value (fields[2], &v, DS_TYPE_DERIVE);
+		if (status != 0)
+			continue;
 
-		while (pnl != NULL)
-		{
-			pnl = strchr(pnl, '\n');
-			i++;
-			if (pnl && (*pnl != '\0'))
-				pnl++;
-		}
-
-		if (i > 0)
-		{
-			llentry_t *e;
-			llvalues = malloc(sizeof(long long int) * i);
-			int j = 0;
-
-			pnl = file_contents;
-			while (pnl != NULL)
-			{
-				pnnl = strchr(pnl, '\n');
-				if (pnnl != NULL)
-					*pnnl = '\0';
-
-				numfields = strsplit (pnl, fields, 4);
-				if (numfields == 3)
-				{
-					llvalues[j] = atoll (fields[2]);
-
-					e = llentry_create (fields[0], &llvalues[j]);
-					if (e == NULL)
-					{
-						ERROR ("zfs_arc plugin: `llentry_create' failed.");
-					}
-					else
-					{
-						llist_append (ksp, e);
-					}
-					j++;
-				}
-				pnl = pnnl;
-				if (pnl != NULL)
-					pnl ++;
-			}
-		}
+		put_zfs_value (ksp, fields[0], v);
 	}
 
-#elif !defined(__FreeBSD__) // Solaris
+	fclose (fh);
+
+#elif defined(KERNEL_SOLARIS)
 	get_kstat (&ksp, "zfs", 0, "arcstats");
 	if (ksp == NULL)
 	{
@@ -250,7 +269,10 @@ static int za_read (void)
 #endif
 
 	/* Sizes */
-	za_read_gauge (ksp, "size",    "cache_size", "arc");
+	za_read_gauge (ksp, "size",  "cache_size", "arc");
+	za_read_gauge (ksp, "c",     "cache_size", "c");
+	za_read_gauge (ksp, "c_min", "cache_size", "c_min");
+	za_read_gauge (ksp, "c_max", "cache_size", "c_max");
 
 	/* The "l2_size" value has disappeared from Solaris some time in
 	 * early 2013, and has only reappeared recently in Solaris 11.2.
@@ -262,9 +284,12 @@ static int za_read (void)
 
 	/* Operations */
 	za_read_derive (ksp, "deleted",  "cache_operation", "deleted");
-#if __FreeBSD__
+#if defined(KERNEL_FREEBSD)
 	za_read_derive (ksp, "allocated","cache_operation", "allocated");
+#if __FreeBSD_version < 1002501
+	/* stolen removed from sysctl kstat.zfs.misc.arcstats on FreeBSD 10.2+ */
 	za_read_derive (ksp, "stolen",   "cache_operation", "stolen");
+#endif
 #endif
 
 	/* Issue indicators */
@@ -302,14 +327,7 @@ static int za_read (void)
 	za_submit ("io_octets", "L2", l2_io, /* num values = */ 2);
 
 #if defined(KERNEL_LINUX)
-	if (llvalues != NULL)
-	{
-		free(llvalues);
-	}
-	if (ksp != NULL)
-	{
-		llist_destroy (ksp);
-	}
+	free_zfs_values (ksp);
 #endif
 
 	return (0);
@@ -317,7 +335,7 @@ static int za_read (void)
 
 static int za_init (void) /* {{{ */
 {
-#if !defined(__FreeBSD__) && !defined(KERNEL_LINUX) // Solaris
+#if defined(KERNEL_SOLARIS)
 	/* kstats chain already opened by update_kstat (using *kc), verify everything went fine. */
 	if (kc == NULL)
 	{

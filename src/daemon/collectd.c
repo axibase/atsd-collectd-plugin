@@ -196,7 +196,7 @@ static int change_basedir (const char *orig_dir)
 	while ((dirlen > 0) && (dir[dirlen - 1] == '/'))
 		dir[--dirlen] = '\0';
 
-	if (dirlen <= 0) {
+	if (dirlen == 0) {
 		free (dir);
 		return (-1);
 	}
@@ -269,6 +269,7 @@ static void update_kstat (void)
 /* TODO
  * Remove all settings but `-f' and `-C'
  */
+__attribute__((noreturn))
 static void exit_usage (int status)
 {
 	printf ("Usage: "PACKAGE_NAME" [OPTIONS]\n\n"
@@ -301,6 +302,11 @@ static int do_init (void)
 #if HAVE_SETLOCALE
 	if (setlocale (LC_NUMERIC, COLLECTD_LOCALE) == NULL)
 		WARNING ("setlocale (\"%s\") failed.", COLLECTD_LOCALE);
+
+	/* Update the environment, so that libraries that are calling
+	 * setlocale(LC_NUMERIC, "") don't accidentally revert these changes. */
+	unsetenv ("LC_ALL");
+	setenv ("LC_NUMERIC", COLLECTD_LOCALE, /* overwrite = */ 1);
 #endif
 
 #if HAVE_LIBKSTAT
@@ -417,7 +423,7 @@ static int pidfile_remove (void)
 #endif /* COLLECT_DAEMON */
 
 #ifdef KERNEL_LINUX
-int notify_upstart (void)
+static int notify_upstart (void)
 {
     char const *upstart_job = getenv("UPSTART_JOB");
 
@@ -437,7 +443,7 @@ int notify_upstart (void)
     return 1;
 }
 
-int notify_systemd (void)
+static int notify_systemd (void)
 {
     int                  fd;
     const char          *notifysocket;
@@ -459,7 +465,11 @@ int notify_systemd (void)
 
     unsetenv ("NOTIFY_SOCKET");
 
+#if defined(SOCK_CLOEXEC)
+    fd = socket (AF_UNIX, SOCK_DGRAM|SOCK_CLOEXEC, /* protocol = */ 0);
+#else
     fd = socket (AF_UNIX, SOCK_DGRAM, /* protocol = */ 0);
+#endif
     if (fd < 0) {
         char errbuf[1024];
         ERROR ("creating UNIX socket failed: %s",
@@ -477,7 +487,6 @@ int notify_systemd (void)
     }
     else
     {
-#if KERNEL_LINUX
         /* Linux abstract namespace socket: specify address as "\0foo", i.e.
          * start with a null byte. Since null bytes have no special meaning in
          * that case, we have to set su_size correctly to cover only the bytes
@@ -487,11 +496,6 @@ int notify_systemd (void)
         su_size = sizeof (sa_family_t) + strlen (notifysocket);
         if (su_size > sizeof (su))
             su_size = sizeof (su);
-#else
-	ERROR ("Systemd socket uses Linux abstract namespace notation (\"%s\"), "
-			"but I don't appear to be running on Linux.", notifysocket);
-	return 0;
-#endif
     }
 
     if (sendto (fd, buffer, strlen (buffer), MSG_NOSIGNAL, (void *) &su, (socklen_t) su_size) < 0)
@@ -503,6 +507,7 @@ int notify_systemd (void)
         return 0;
     }
 
+    unsetenv ("NOTIFY_SOCKET");
     close(fd);
     return 1;
 }
@@ -514,7 +519,7 @@ int main (int argc, char **argv)
 	struct sigaction sig_term_action;
 	struct sigaction sig_usr1_action;
 	struct sigaction sig_pipe_action;
-	char *configfile = CONFIGFILE;
+	const char *configfile = CONFIGFILE;
 	int test_config  = 0;
 	int test_readall = 0;
 	const char *basedir;
@@ -634,6 +639,8 @@ int main (int argc, char **argv)
 #endif
 	)
 	{
+		int status;
+
 		if ((pid = fork ()) == -1)
 		{
 			/* error */
@@ -662,19 +669,24 @@ int main (int argc, char **argv)
 		close (1);
 		close (0);
 
-		if (open ("/dev/null", O_RDWR) != 0)
+		status = open ("/dev/null", O_RDWR);
+		if (status != 0)
 		{
-			ERROR ("Error: Could not connect `STDIN' to `/dev/null'");
+			ERROR ("Error: Could not connect `STDIN' to `/dev/null' (status %d)", status);
 			return (1);
 		}
-		if (dup (0) != 1)
+
+		status = dup (0);
+		if (status != 1)
 		{
-			ERROR ("Error: Could not connect `STDOUT' to `/dev/null'");
+			ERROR ("Error: Could not connect `STDOUT' to `/dev/null' (status %d)", status);
 			return (1);
 		}
-		if (dup (0) != 2)
+
+		status = dup (0);
+		if (status != 2)
 		{
-			ERROR ("Error: Could not connect `STDERR' to `/dev/null'");
+			ERROR ("Error: Could not connect `STDERR' to `/dev/null', (status %d)", status);
 			return (1);
 		}
 	} /* if (daemonize) */
