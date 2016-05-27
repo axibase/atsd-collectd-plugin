@@ -180,6 +180,10 @@ series e:nurswgsvl007 ms:1437658049000 m:collectd.users.logged_in=4
 
 Added string DiscardPrefix option that allows to exclude highest level in path, for example
 
+`/NURSWGVML107/mnt/uu8000` become `/mnt/uu800`
+
+`/NURSWGVML107` become `/`
+
 Updated Configuration Example:
 
 ```
@@ -193,6 +197,3 @@ Updated Configuration Example:
 </Plugin>
 ```
 
-`/NURSWGVML107/mnt/uu8000` become `/mnt/uu800`
-
-`/NURSWGVML107` become `/`
