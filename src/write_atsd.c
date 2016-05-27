@@ -1148,13 +1148,25 @@ static int wa_config_node(oconfig_item_t * ci) {
 
         if (strcasecmp("atsdurl", child->key) == 0) {
 
-            if (sscanf(child->values[0].value.string, "%99[^:]://%99[^:]:%99[^\n]", cb->protocol, cb->node, cb->service) == 3) {
+            int args = sscanf(child->values[0].value.string, "%99[^:]://%99[^:]:%99[^\n]", cb->protocol, cb->node, cb->service);
+            if (args == 3) {
                 if (strcasecmp("UDP", cb->protocol) != 0 &&
                     strcasecmp("TCP", cb->protocol) != 0) {
-                    ERROR("write_atsd plugin: Unknown protocol (%s)",
-                          cb->protocol);
+                    ERROR("write_atsd plugin: Unknown protocol (%s)", cb->protocol);
                     status = -1;
                 }
+            } else if (args == 2) {
+                if (strcasecmp("TCP", cb->protocol) == 0) {
+                    sfree(cb->service);
+                    cb->service = strdup("8081");
+                }
+                else if (strcasecmp("UDP", cb->protocol) == 0) {
+                    sfree(cb->service);
+                    cb->service = strdup("8082");
+                }
+            } else {
+                ERROR("write_atsd plugin: failed to parse atsdurl (%s)", child->values[0].value.string);
+                status = -1;
             }
         }
         else if (strcasecmp("Prefix", child->key) == 0)
