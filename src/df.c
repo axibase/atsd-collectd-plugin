@@ -84,7 +84,7 @@ static int df_init(void) {
 static int startsWith(const char *pre, const char *str) {
     size_t lenpre = strlen(pre),
             lenstr = strlen(str);
-    return lenstr < lenpre ? 1 : strncmp(pre, str, lenpre) == 0;
+    return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
 }
 
 static int df_config(const char *key, const char *value) {
@@ -311,13 +311,16 @@ static int df_read(void) {
             }
             else {
                 size_t len = strlen(discard_prefix);
-                char *discard_prefix_with_minus = malloc(len + 1 + 1);
-                sstrncpy(discard_prefix_with_minus, s, sizeof(discard_prefix_with_minus));
+                char *discard_prefix_with_minus = malloc(len + 2);
+                memset(discard_prefix_with_minus,'\0', len+2);
+                sstrncpy(discard_prefix_with_minus, discard_prefix, len+2);
                 discard_prefix_with_minus[len] = '-';
                 discard_prefix_with_minus[len + 1] = '\0';
                 if (startsWith(discard_prefix_with_minus, s)) {
                     s = strstr(s, discard_prefix_with_minus);
                     memmove(s, s + strlen(discard_prefix_with_minus), strlen(s + strlen(discard_prefix_with_minus)));
+                    s[strlen(s + strlen(discard_prefix_with_minus))] = 0;
+                    memset(&disk_name[0], 0, sizeof(disk_name));
                     sstrncpy(disk_name, s, sizeof(disk_name));
                 }
                 sfree(discard_prefix_with_minus);
