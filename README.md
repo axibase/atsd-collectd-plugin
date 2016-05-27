@@ -1,10 +1,12 @@
+### write_atsd plugin
+
 The ATSD Write plugin sends metrics to [Axibase Time-Series Database](https://axibase.com/products/axibase-time-series-database/).
 
 Collectd with write_atsd plugin binary releases can be found [here](https://github.com/axibase/atsd-collectd-plugin/releases/tag/5.5.0-atsd-binary).
 
 Download corresponding binary and install using following steps:
 
-```
+```ls
 sudo dpkg -i ubuntu_1*.04_amd64.deb
 sudo sed -i 's/atsd_server/localhost/g' /opt/collectd/etc/collectd.conf
 sudo service collectd-axibase start
@@ -12,7 +14,7 @@ sudo service collectd-axibase start
 
 Statistics will be send to tcp://localhost:8081, to check it, run
 
-```
+```ls
 nc -lk 8081
 > series e:nurswgsvl007 ms:1437658049000 m:collectd.cpu.aggregation.idle.average=99.500014
 > series e:nurswgsvl007 ms:1437658049000 m:collectd.contextswitch.contextswitch=68.128436
@@ -157,7 +159,7 @@ LoadPlugin vmem
 
 Commands sent by the ATSD Write plugin to insert time series data into ATSD:
 
-```
+```ls
 series e:nurswgsvl007 ms:1437658049000 m:collectd.cpu.aggregation.idle.average=99.500014
 series e:nurswgsvl007 ms:1437658049000 m:collectd.contextswitch.contextswitch=68.128436
 series e:nurswgsvl007 ms:1437658049000 m:collectd.cpu.busy=0.301757 t:instance=0
@@ -172,5 +174,26 @@ series e:nurswgsvl007 ms:1437658049000 m:collectd.memory.swap_used=139268096
 series e:nurswgsvl007 ms:1437658049000 m:collectd.uptime.uptime=1185
 series e:nurswgsvl007 ms:1437658049000 m:collectd.users.logged_in=4
 ...
+```
+
+### df plugin update
+
+Added string DiscardPrefix option that allows to exclude highest level in path, for example
+
+`/NURSWGVML107/mnt/uu8000` become `/mnt/uu800`
+
+`/NURSWGVML107` become `/`
+
+Updated Configuration Example:
+
+```
+<Plugin df>
+        MountPoint "/^/etc//"
+        FSType tmpfs            
+        IgnoreSelected True
+        ReportInodes True
+        ValuesPercentage True
+        DiscardPrefix "NURSWGVML107"
+</Plugin>
 ```
 
