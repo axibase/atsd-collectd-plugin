@@ -317,7 +317,7 @@ static int df_read(void) {
                 discard_prefix_with_minus[len + 1] = '\0';
                 if (startsWith(discard_prefix_with_minus, s)) {
                     s = strstr(s, discard_prefix_with_minus);
-                    memmove(s, s + strlen(discard_prefix_with_minus), strlen(s + strlen(discard_prefix)));
+                    memmove(s, s + strlen(discard_prefix_with_minus), strlen(s + strlen(discard_prefix_with_minus)));
                     sstrncpy(disk_name, s, sizeof(disk_name));
                 }
                 sfree(discard_prefix_with_minus);
