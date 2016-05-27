@@ -55,7 +55,8 @@ static const char *config_keys[] =
                 "ReportByDevice",
                 "ReportInodes",
                 "ValuesAbsolute",
-                "ValuesPercentage"
+                "ValuesPercentage",
+                "DiscardPrefix"
         };
 static int config_keys_num = STATIC_ARRAY_SIZE(config_keys);
 
