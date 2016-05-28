@@ -1,15 +1,13 @@
 The ATSD Write plugin sends metrics to [Axibase Time-Series Database](https://axibase.com/products/axibase-time-series-database/).
 
-Synopsis
+Collectd with write_atsd plugin binary releases can be found [here](https://github.com/axibase/atsd-collectd-plugin/releases/tag/5.5.0-atsd-binary).
 
 ```
 #LoadPlugin write_atsd
 #...
 #<Plugin write_atsd>
 #     <Node "atsd">
-#         Host "127.0.0.1"
-#         Port 8081
-#         Protocol "tcp"
+#         AtsdUrl "atsd_url"
 #         ShortHostname true
 #         <Cache "df">
 #              Interval 300
@@ -25,11 +23,9 @@ Synopsis
 
 Possible settings:
 
- setting              | required | description                                                                       | default value
-----------------------|----------|-----------------------------------------------------------------------------------|----------------
- `Host`      	      | yes      | hostname of target ATSD server                                                                    | `localhost`
- `Port`               | yes      | port of target ATSD server                                                                         | `8081`
- `Protocol`           | yes      | protocol that will be used to transfer data: `tcp` or `udp`                                                      | `tcp`
+ **Setting**              | **Required** | **Description**                                                                       | **Default Value**
+----------------------|----------|----------------------------------------------------------------------------------- |----------------
+ `AtsdUrl`     	      | yes      | protocol to transfer data: `tcp` or `udp`, hostname and port of target ATSD server| `tcp://localhost:8081`
  `Entity`             | no       | default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname. If this setting is uncommented, then the entered value will be used as the entity                                                                    | `hostname`
  `Prefix`             | no       | global prefix for each metric, used to distinguish metrics                                                     | `collectd.`
  `Cache`             | no       | name of read plugin whose metrics will be cached: all possible metrics that are collected by this plugin will be included in the cache                                                     | `-`
@@ -116,9 +112,7 @@ LoadPlugin vmem
 # Entity "entity" and Prefix "collectd".
 <Plugin write_atsd>
      <Node "atsd">
-         Host "localhost"
-         Port 8081
-         Protocol "tcp"
+         AtsdUrl "udp://localhost:8082"
          <Cache "df">
               Interval 300
               Threshold 1
@@ -139,7 +133,7 @@ LoadPlugin vmem
 
 Commands sent by the ATSD Write plugin to insert time series data into ATSD:
 
-```
+```ls
 series e:nurswgsvl007 ms:1437658049000 m:collectd.cpu.aggregation.idle.average=99.500014
 series e:nurswgsvl007 ms:1437658049000 m:collectd.contextswitch.contextswitch=68.128436
 series e:nurswgsvl007 ms:1437658049000 m:collectd.cpu.busy=0.301757 t:instance=0

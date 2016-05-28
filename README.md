@@ -27,9 +27,7 @@ Configuration synopsis
 #...
 #<Plugin write_atsd>
 #     <Node "atsd">
-#         Host "127.0.0.1"
-#         Port 8081
-#         Protocol "tcp"
+#         AtsdUrl "atsd_url"
 #         ShortHostname true
 #         <Cache "df">
 #              Interval 300
@@ -45,11 +43,9 @@ Configuration synopsis
 
 Possible settings:
 
- setting              | required | description                                                                       | default value
-----------------------|----------|-----------------------------------------------------------------------------------|----------------
- `Host`      	      | yes      | hostname of target ATSD server                                                                    | `localhost`
- `Port`               | yes      | port of target ATSD server                                                                         | `8081`
- `Protocol`           | yes      | protocol that will be used to transfer data: `tcp` or `udp`                                                      | `tcp`
+ **Setting**              | **Required** | **Description**                                                                       | **Default Value**
+----------------------|----------|----------------------------------------------------------------------------------- |----------------
+ `AtsdUrl`     	      | yes      | protocol to transfer data: `tcp` or `udp`, hostname and port of target ATSD server| `tcp://localhost:8081`
  `Entity`             | no       | default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname. If this setting is uncommented, then the entered value will be used as the entity                                                                    | `hostname`
  `Prefix`             | no       | global prefix for each metric, used to distinguish metrics                                                     | `collectd.`
  `Cache`             | no       | name of read plugin whose metrics will be cached: all possible metrics that are collected by this plugin will be included in the cache                                                     | `-`
@@ -136,9 +132,7 @@ LoadPlugin vmem
 # Entity "entity" and Prefix "collectd".
 <Plugin write_atsd>
      <Node "atsd">
-         Host "localhost"
-         Port 8081
-         Protocol "tcp"
+         AtsdUrl "udp://localhost:8082"
          <Cache "df">
               Interval 300
               Threshold 1
