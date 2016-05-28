@@ -1,26 +1,28 @@
-### write_atsd plugin
+# write_atsd Plugin
 
-The ATSD Write plugin sends metrics to [Axibase Time-Series Database](https://axibase.com/products/axibase-time-series-database/).
+The ATSD Write plugin sends collectd metrics to an [Axibase Time Series Database](https://axibase.com/products/axibase-time-series-database/) server.
 
-Collectd with write_atsd plugin binary releases can be found [here](https://github.com/axibase/atsd-collectd-plugin/releases/tag/5.5.0-atsd-binary).
+## Run from Binary
 
-Download corresponding binary and install using following steps:
+Binary releases are available [here](https://github.com/axibase/atsd-collectd-plugin/releases/tag/5.5.0-atsd-binary).
+
+* To run from a binary release, download it and replace `${ATSD_HOSTNAME}` with the hostname or IP address of the target ATSD server:
 
 ```ls
 sudo dpkg -i ubuntu_1*.04_amd64.deb
-sudo sed -i 's/atsd_server/localhost/g' /opt/collectd/etc/collectd.conf
+sudo sed -i 's/atsd_server/${ATSD_HOSTNAME}/g' /opt/collectd/etc/collectd.conf
+```
+
+* Start the service:
+
+```
 sudo service collectd-axibase start
 ```
 
-Statistics will be send to tcp://localhost:8081, to check it, run
+* Statistics will be sent to `tcp://${ATSD_HOSTNAME}:8081`.
 
-```ls
-nc -lk 8081
-> series e:nurswgsvl007 ms:1437658049000 m:collectd.cpu.aggregation.idle.average=99.500014
-> series e:nurswgsvl007 ms:1437658049000 m:collectd.contextswitch.contextswitch=68.128436
-```
 
-Configuration synopsis
+## Configuration
 
 ```
 #LoadPlugin write_atsd
@@ -41,24 +43,22 @@ Configuration synopsis
 # </Plugin>
 ```
 
-Possible settings:
+### Settings:
 
- **Setting**              | **Required** | **Description**                                                                       | **Default Value**
-----------------------|----------|----------------------------------------------------------------------------------- |----------------
- `AtsdUrl`     	      | yes      | protocol to transfer data: `tcp` or `udp`, hostname and port of target ATSD server| `tcp://localhost:8081`
- `Entity`             | no       | default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname. If this setting is uncommented, then the entered value will be used as the entity                                                                    | `hostname`
- `Prefix`             | no       | global prefix for each metric, used to distinguish metrics                                                     | `collectd.`
- `Cache`             | no       | name of read plugin whose metrics will be cached: all possible metrics that are collected by this plugin will be included in the cache                                                     | `-`
- `Interval`             | no       | time in seconds during which same values that do not exceed the set threshold are not recorded, set in seconds  | `-`
- `Threshold`             | no       | deviation threshold from the cached value. If threshold is exceeded, then value is recorded, cache is dropped, interval is interrupted, set in percent (%)     | `-`
- `ShortHostname`             | no       | convert entity from fully qualified domain name to short name | `false`
+ **Setting**              | **Required** | **Description**   | **Default Value**
+----------------------|:----------|:-------------------------|:----------------
+ `AtsdUrl`     	      | yes      | Protocol to transfer data: `tcp` or `udp`, hostname and port of target ATSD server| `tcp://localhost:8081`
+ `Entity`             | no       | Default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname.                                                                    | `hostname`
+  `ShortHostname`             | no       | Convert entity from fully qualified domain name to short name | `false`
+ `Prefix`             | no       | Metric prefix to group `collectd` metrics                                                     | `collectd.`
+ `Cache`             | no       | Name of read plugins whose metrics will be cached.<br>Cache feature is used to save disk space in the database by not resending the same values. | `-`
+ `Interval`             | no       | Time in seconds during which values within the threshold are not sent. | `-`
+ `Threshold`             | no       | Deviation threshold, in %, from the previously sent value. If threshold is exceeded, then the value is sent regardless of the cache interval.    | `-`
 
-Cache block is used to save disk space in the database.
-For example, we can receive the same values (like 0) from read plugins and it will be sent with the default collectd interval (every 10 seconds), but if the value doesn't change we can send it less frequently until it changes. With threshold parameter we can set allowed deviation from previous value (set in percent %). Interval is responsible for frequency at which values (that do not change beyond the threshold) are sent and we can be sure that data points (values) inside this interval are not changing.
 
-Example configuration file that demonstrates to use the main read plugins and their outputs:
+### Sample Configuration File
 
-```
+```xml
 LoadPlugin aggregation
 LoadPlugin contextswitch
 LoadPlugin cpu
@@ -112,27 +112,12 @@ LoadPlugin vmem
     IgnoreSelected true
 </Plugin>
 
-# The following configuration sets the log-level and the file to write
-# log messages to; all lines are prefixed by the severity of the log
-# message and by the current time.
-<Plugin logfile>
-    LogLevel info
-    File "/var/log/collectd.log"
-    Timestamp true
-    PrintSeverity true
-</Plugin>
-
-# The following configuration sets the log-level info.
-<Plugin syslog>
-   LogLevel info
-</Plugin>
-
 # The following configuration connects to ATSD server on localhost
 # via TCP and sends data via port 8081. The data will be sent with
 # Entity "entity" and Prefix "collectd".
 <Plugin write_atsd>
      <Node "atsd">
-         AtsdUrl "udp://localhost:8082"
+         AtsdUrl "udp://atsd_hostname:8082"
          <Cache "df">
               Interval 300
               Threshold 1
@@ -151,7 +136,7 @@ LoadPlugin vmem
 </Plugin>
 ```
 
-Commands sent by the ATSD Write plugin to insert time series data into ATSD:
+### Sample commands sent by ATSD Write plugin:
 
 ```ls
 series e:nurswgsvl007 ms:1437658049000 m:collectd.cpu.aggregation.idle.average=99.500014
@@ -170,15 +155,16 @@ series e:nurswgsvl007 ms:1437658049000 m:collectd.users.logged_in=4
 ...
 ```
 
-### df plugin update
+### df PlugIn
 
-Added string DiscardPrefix option that allows to exclude highest level in path, for example
+`DiscardPrefix` setting discards root directory from file system path to support monitoring of proc remounted file systems in Linux containers/Docker.
 
-`/NURSWGVML107/mnt/uu8000` become `/mnt/uu800`
+Examples:
 
-`/NURSWGVML107` become `/`
+* `/rootfs/opt/` to `/opt`
+* `/rootfs` to `/`
 
-Updated Configuration Example:
+Configuration Example:
 
 ```
 <Plugin df>
@@ -187,7 +173,7 @@ Updated Configuration Example:
         IgnoreSelected True
         ReportInodes True
         ValuesPercentage True
-        DiscardPrefix "NURSWGVML107"
+        DiscardPrefix "rootfs"
 </Plugin>
 ```
 
