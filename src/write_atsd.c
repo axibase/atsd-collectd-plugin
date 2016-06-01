@@ -405,13 +405,14 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av, struct wa_callbac
     double stored_value, cur_value;
     double cur_threshold;
 
-    pthread_mutex_lock(&cb->send_lock);
     int status, q;
     int same_value = 1;
+    int interested = 0;
 
     for (q = 0; q < cb->wa_num_caches; q++) {
 
         if (strcasecmp(ak->plugin, cb->wa_caches[q]->name) == 0) {
+            interested = 1;
             status = c_avl_get(cb->cache_tree, ak, (void *) &atsd_stored_value);
 
             if (status == 0) /* metric in tree */{
@@ -485,7 +486,10 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av, struct wa_callbac
             break;
         }
     }
-    pthread_mutex_unlock(&cb->send_lock);
+    if (interested == 0){
+        sfree(ak);
+        sfree(av);
+    }
     return same_value;
 }
 
