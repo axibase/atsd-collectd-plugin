@@ -487,7 +487,13 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av, struct wa_callbac
         }
     }
     if (interested == 0){
+        sfree(ak->plugin);
+        sfree(ak->plugin_instance);
+        sfree(ak->type);
+        sfree(ak->type_instance);
         sfree(ak);
+
+        sfree(av->value);
         sfree(av);
     }
     return same_value;
