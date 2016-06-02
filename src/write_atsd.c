@@ -423,11 +423,7 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av, struct wa_callbac
                 if ((av->time - atsd_stored_value->time >= cb->wa_caches[q]->interval * 1000)
                     || (cur_threshold >  (cb->wa_caches[q]->threshold) * stored_value / 100)) {
 
-                    ERROR("write_atsd plugin: tree size before remove is %i.", c_avl_size(cb->cache_tree));
                     status = c_avl_remove(cb->cache_tree, ak, (void *) &atsd_stored_key, NULL);
-                    ERROR("write_atsd plugin: Successfully freed atsd_stored_key: %s %s %s %s. Tree size is %i.",
-                          atsd_stored_key->plugin, atsd_stored_key->plugin_instance, atsd_stored_key->type, atsd_stored_key->type_instance, c_avl_size(cb->cache_tree));
-                    ERROR("write_atsd plugin: Successfully freed atsd_stored_value: %s.", atsd_stored_value->value);
 
                     sfree(atsd_stored_key->plugin);
                     sfree(atsd_stored_key->plugin_instance);
@@ -449,18 +445,9 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av, struct wa_callbac
                         ERROR("utils_vl_lookup: c_avl_insert(\"%s\") failed with status %i.",
                               ak->plugin, status);
                         return (-1);
-                    } else {
-                        ERROR("write_atsd plugin: Successfully added atsd_stored_key: %s %s %s %s. Tree size is %i.",
-                              ak->plugin, ak->plugin_instance, ak->type, ak->type_instance, c_avl_size(cb->cache_tree));
-                        ERROR("write_atsd plugin: Successfully added atsd_stored_value: %s.",
-                              av->value);
                     }
                 } else{
                     same_value = 0;
-                    ERROR("write_atsd plugin: Free repeated atsd_stored_key: %s %s %s %s. Tree size is %i.",
-                          ak->plugin, ak->plugin_instance, ak->type, ak->type_instance, c_avl_size(cb->cache_tree));
-                    ERROR("write_atsd plugin: Free repeated added atsd_stored_value: %s.",
-                          av->value);
 
                     sfree(ak->plugin);
                     sfree(ak->plugin_instance);
@@ -477,10 +464,6 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av, struct wa_callbac
                     ERROR("utils_vl_lookup: c_avl_insert(\"%s\") failed with status %i.",
                           ak->plugin, status);
                     return (-1);
-                } else {
-                    ERROR("write_atsd plugin: Successfully added atsd_stored_key: %s %s %s %s. Tree size is %i.",
-                          ak->plugin, ak->plugin_instance, ak->type, ak->type_instance, c_avl_size(cb->cache_tree));
-                    ERROR("write_atsd plugin: Successfully added atsd_stored_value: %s.", av->value);
                 }
             }
             break;
@@ -1023,8 +1006,6 @@ static int wa_write(const data_set_t *ds, const value_list_t *vl,
 
 static int wa_config_cache(struct wa_callback *cb, oconfig_item_t * child){
 
-    ERROR("write_atsd plugin: cache configuration started.");
-
     int q, status;
     struct wa_cache_s *nc, wc;
     struct wa_cache_s **tmp;
@@ -1065,7 +1046,6 @@ static int wa_config_cache(struct wa_callback *cb, oconfig_item_t * child){
     memcpy(nc, &wc, sizeof(*nc));
     cb->wa_caches[cb->wa_num_caches++] = nc;
 
-    ERROR("write_atsd plugin: cache configuration completed.");
     return (0);
 }
 
