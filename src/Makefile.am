@@ -140,6 +140,7 @@ pkglib_LTLIBRARIES =
 BUILT_SOURCES =
 CLEANFILES =
 
+if BUILD_PLUGIN_AGGREGATION
 if HAVE_PROTOC3
 if HAVE_GRPC_CPP
 BUILT_SOURCES += collectd.grpc.pb.cc collectd.pb.cc types.pb.cc
@@ -158,7 +159,6 @@ types.pb.cc: $(top_srcdir)/proto/types.proto
 endif
 endif
 
-if BUILD_PLUGIN_AGGREGATION
 pkglib_LTLIBRARIES += aggregation.la
 aggregation_la_SOURCES = aggregation.c \
                          utils_vl_lookup.c utils_vl_lookup.h
@@ -411,7 +411,7 @@ pkglib_LTLIBRARIES += dpdkstat.la
 dpdkstat_la_SOURCES = dpdkstat.c
 dpdkstat_la_CFLAGS = $(AM_CFLAGS) $(BUILD_WITH_DPDK_CFLAGS)
 dpdkstat_la_LDFLAGS = $(PLUGIN_LDFLAGS) $(BUILD_WITH_DPDK_LDFLAGS)
-dpdkstat_la_LIBADD = $(BUILD_WITH_DPDK_LIBS) 
+dpdkstat_la_LIBADD = $(BUILD_WITH_DPDK_LIBS)
 endif
 
 if BUILD_PLUGIN_DRBD
@@ -1284,6 +1284,13 @@ if BUILD_PLUGIN_WIRELESS
 pkglib_LTLIBRARIES += wireless.la
 wireless_la_SOURCES = wireless.c
 wireless_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
+if BUILD_PLUGIN_WRITE_ATSD
+pkglib_LTLIBRARIES += write_atsd.la
+write_atsd_la_SOURCES = write_atsd.c \
+                        utils_format_atsd.c utils_format_atsd.h
+write_atsd_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_WRITE_GRAPHITE
