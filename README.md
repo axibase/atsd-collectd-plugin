@@ -162,28 +162,6 @@ series e:nurswgsvl007 ms:1437658049000 m:collectd.users.logged_in=4
 ...
 ```
 
-### df PlugIn
-
-`DiscardPrefix` setting discards root directory from file system path to support monitoring of proc remounted file systems in Linux containers/Docker.
-
-Examples:
-
-* `/rootfs/opt/` to `/opt`
-* `/rootfs` to `/`
-
-Configuration Example:
-
-```
-<Plugin df>
-        MountPoint "/^/etc//"
-        FSType tmpfs            
-        IgnoreSelected True
-        ReportInodes True
-        ValuesPercentage True
-        DiscardPrefix "rootfs"
-</Plugin>
-```
-
 ## Install From Sources
 
 ### Ubuntu / Debian
