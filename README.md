@@ -26,7 +26,11 @@ sudo sed -i s,atsd_url,tcp://${ATSD_HOSTNAME}:8081,g /etc/collectd.conf         
 sudo service collectd-axibase start
 ```
 
-* Statistics will be sent to `tcp://${ATSD_HOSTNAME}:8081`.
+* Statistics will be sent to `tcp://${ATSD_HOSTNAME}:8081` with default entity - fully qualified domain name (FQDN) of machine. To get it run:
+```
+hostname --fqdn
+```
+
 
 
 ## Configuration
