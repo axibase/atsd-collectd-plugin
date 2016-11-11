@@ -55,7 +55,8 @@ static const char *config_keys[] =
 	"ReportByDevice",
 	"ReportInodes",
 	"ValuesAbsolute",
-	"ValuesPercentage"
+	"ValuesPercentage",
+    "DiscardPrefix"
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
 
@@ -67,6 +68,7 @@ static _Bool by_device = 0;
 static _Bool report_inodes = 0;
 static _Bool values_absolute = 1;
 static _Bool values_percentage = 0;
+static char *discard_prefix = NULL;
 
 static int df_init (void)
 {
@@ -78,6 +80,12 @@ static int df_init (void)
 		il_fstype = ignorelist_create (1);
 
 	return (0);
+}
+
+static int startsWith(const char *pre, const char *str) {
+    size_t lenpre = strlen(pre),
+            lenstr = strlen(str);
+    return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
 }
 
 static int df_config (const char *key, const char *value)
@@ -152,6 +160,12 @@ static int df_config (const char *key, const char *value)
 
 		return (0);
 	}
+	else if (strcasecmp(key, "DiscardPrefix") == 0) {
+        discard_prefix = strdup(value);
+            return (0);
+        }
+     		return (0);
+    }
 
 	return (-1);
 }
@@ -310,6 +324,39 @@ static int df_read (void)
 		blk_free     = (uint64_t) statbuf.f_bavail;
 		blk_reserved = (uint64_t) (statbuf.f_bfree - statbuf.f_bavail);
 		blk_used     = (uint64_t) (statbuf.f_blocks - statbuf.f_bfree);
+
+        if (discard_prefix != NULL) {
+            char *s = strdup(disk_name);
+            if (strcasecmp(s, discard_prefix) == 0) {
+                sstrncpy(disk_name, "root", sizeof(disk_name));
+            }
+            else {
+                size_t len = strlen(discard_prefix);
+                char *discard_prefix_with_minus = malloc(len + 2);
+                memset(discard_prefix_with_minus,'\0', len+2);
+                sstrncpy(discard_prefix_with_minus, discard_prefix, len+2);
+                discard_prefix_with_minus[len] = '-';
+                discard_prefix_with_minus[len + 1] = '\0';
+                if (startsWith(discard_prefix_with_minus, s)) {
+                    s = strstr(s, discard_prefix_with_minus);
+                    memmove(s, s + strlen(discard_prefix_with_minus), strlen(s + strlen(discard_prefix_with_minus)));
+                    s[strlen(s + strlen(discard_prefix_with_minus))] = 0;
+                    memset(&disk_name[0], 0, sizeof(disk_name));
+                    sstrncpy(disk_name, s, sizeof(disk_name));
+                }
+                sfree(discard_prefix_with_minus);
+            }
+            sfree(s);
+        }
+
+        if (values_absolute) {
+            df_submit_one(disk_name, "df_complex", "free",
+                          (gauge_t)(blk_free * blocksize));
+            df_submit_one(disk_name, "df_complex", "reserved",
+                          (gauge_t)(blk_reserved * blocksize));
+            df_submit_one(disk_name, "df_complex", "used",
+                          (gauge_t)(blk_used * blocksize));
+        }
 
 		if (values_absolute)
 		{
