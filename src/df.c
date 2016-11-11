@@ -162,9 +162,7 @@ static int df_config (const char *key, const char *value)
 	}
 	else if (strcasecmp(key, "DiscardPrefix") == 0) {
         discard_prefix = strdup(value);
-            return (0);
-        }
-     		return (0);
+        return (0);
     }
 
 	return (-1);
