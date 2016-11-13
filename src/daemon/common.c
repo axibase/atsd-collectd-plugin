@@ -1723,6 +1723,12 @@ void strarray_free (char **array, size_t array_len) /* {{{ */
 	sfree (array);
 } /* }}} void strarray_free */
 
+int starts_with(const char *pre, const char *str) {
+	size_t lenpre = strlen(pre),
+			lenstr = strlen(str);
+	return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
+}
+
 #ifdef HAVE_SYS_CAPABILITY_H
 int check_capability (int capability) /* {{{ */
 {

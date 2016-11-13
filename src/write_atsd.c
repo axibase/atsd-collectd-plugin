@@ -920,10 +920,46 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                     return (status);
                 }
             };
-
             continue;
+        }
+        else if (starts_with("lvs.", vl->plugin)) {
+            strlcat(metric_name, vl->plugin, sizeof(metric_name));
+            if (cb->wa_num_caches > 0) {
+                ak = (atsd_key_t *) malloc(sizeof(*ak));
+                if (ak == NULL) {
+                    ERROR("write_atsd plugin: malloc failed.");
+                    return (-1);
+                }
+                memset(ak, 0, sizeof(*ak));
 
+                ak->plugin = strdup(vl->plugin);
+                ak->plugin_instance = strdup(vl->plugin_instance);
+                ak->type = strdup(vl->type);
+                ak->type_instance = strdup(vl->type_instance);
 
+                av = (atsd_value_t *) malloc(sizeof(*av));
+                if (av == NULL) {
+                    ERROR("write_atsd plugin: malloc failed.");
+                    return (-1);
+                }
+                memset(av, 0, sizeof(*av));
+                av->value = strdup(ret);
+                av->time = CDTIME_T_TO_MS(vl->time);
+
+                pthread_mutex_lock(&cb->avl_lock);
+                same_value = check_cache_value(ak, av, cb);
+                pthread_mutex_unlock(&cb->avl_lock);
+            }
+            if (same_value > 0) {
+                ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s t:volume_group=%s t:logical_volume=%s\n",
+                        entity, CDTIME_T_TO_MS(vl->time), metric_name, ret, vl->plugin_instance, vl->type_instance);
+                status = wa_send_message(sendline, cb);
+                if (status != 0){
+                    sfree(rates);
+                    return (status);
+                }
+            };
+            continue;
         }
         else {
             strlcat(metric_name, vl->plugin, sizeof(metric_name));

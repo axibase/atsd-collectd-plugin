@@ -82,12 +82,6 @@ static int df_init (void)
 	return (0);
 }
 
-static int startsWith(const char *pre, const char *str) {
-    size_t lenpre = strlen(pre),
-            lenstr = strlen(str);
-    return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
-}
-
 static int df_config (const char *key, const char *value)
 {
 	df_init ();
@@ -335,7 +329,7 @@ static int df_read (void)
                 sstrncpy(discard_prefix_with_minus, discard_prefix, len+2);
                 discard_prefix_with_minus[len] = '-';
                 discard_prefix_with_minus[len + 1] = '\0';
-                if (startsWith(discard_prefix_with_minus, s)) {
+                if (starts_with(discard_prefix_with_minus, s)) {
                     s = strstr(s, discard_prefix_with_minus);
                     memmove(s, s + strlen(discard_prefix_with_minus), strlen(s + strlen(discard_prefix_with_minus)));
                     s[strlen(s + strlen(discard_prefix_with_minus))] = 0;
