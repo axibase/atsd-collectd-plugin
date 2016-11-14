@@ -954,7 +954,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                 ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s", entity, CDTIME_T_TO_MS(vl->time), metric_name, ret);
 
                 char* type_instance = strdup(vl->type_instance);
-                char *saveptr;
+                char* saveptr = NULL;
                 char* key_value = strtok_r(type_instance, ";", &saveptr);
                 memset(tmp, '\0', sizeof(tmp));
 
