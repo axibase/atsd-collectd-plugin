@@ -952,7 +952,6 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
             }
             if (same_value > 0) {
                 ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s", entity, CDTIME_T_TO_MS(vl->time), metric_name, ret);
-
                 sstrncpy(tmp, vl->type_instance, sizeof(tmp));
                 char* key_value = strtok(tmp, ";");
                 while (key_value != NULL) {
@@ -960,7 +959,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                         strlcat(sendline, " t:", sizeof(sendline));
                         strlcat(sendline, key_value, sizeof(sendline));
                     }
-                    key_value = strtok(NULL, ";=");
+                    key_value = strtok(NULL, ";");
                 }
                 sfree(key_value);
 
