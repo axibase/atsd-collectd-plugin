@@ -952,17 +952,27 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
             }
             if (same_value > 0) {
                 ssnprintf(sendline, sizeof(sendline), "series e:%s ms:%" PRIu64 " m:%s=%s", entity, CDTIME_T_TO_MS(vl->time), metric_name, ret);
-                sstrncpy(tmp, vl->type_instance, sizeof(tmp));
-                char* key_value = strtok(tmp, ";");
+
+                char* type_instance = strdup(vl->type_instance);
+                char* key_value = strtok(type_instance, ";");
+                memset(tmp, '\0', sizeof(tmp));
+
                 while (key_value != NULL) {
-                    if (key_value != NULL) {
-                        strlcat(sendline, " t:", sizeof(sendline));
-                        strlcat(sendline, key_value, sizeof(sendline));
+                    if (strstr(key_value, "=") != NULL)
+                    {
+                        strlcat(tmp, " t:", sizeof(tmp));
+                        strlcat(tmp, key_value, sizeof(tmp));
+                    } else {
+                        ssnprintf(tmp, sizeof(tmp), " t:instance=\"%s\"", vl->type_instance);
+                        break;
                     }
                     key_value = strtok(NULL, ";");
                 }
+
+                sfree(type_instance);
                 sfree(key_value);
 
+                strlcat(sendline, tmp, sizeof(sendline));
                 strlcat(sendline, "\n", sizeof(sendline));
                 status = wa_send_message(sendline, cb);
                 if (status != 0){
