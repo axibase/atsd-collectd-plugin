@@ -166,6 +166,36 @@ series e:nurswgsvl007 ms:1437658049000 m:collectd.users.logged_in=4
 ...
 ```
 
+## `exec` Plugin Processing
+
+The [`exec`](https://collectd.org/documentation/manpages/collectd-exec.5.shtml) plugin invokes a custom script that  generates `PUTVAL` commands targeting the following format: 
+
+```ls
+PUTVAL $HOSTNAME/exec-{plugin-instance}/gauge-{type-instance} N:{value}
+```
+
+The `PUTVAL` commands are then parsed by the collectd daemon and are converted by the `write_atsd` plugin into ATSD's network API commands.
+
+```ls
+series e:$HOSTNAME m:collectd.{plugin-instance}={value} t:instance={type-instance}
+```
+
+However, if the `{type-instance}` field contains `;`-separated key=value pairs, the `write_atsd` plugin performs additional processing of this field to split it into separate series tags.
+
+```ls
+PUTVAL $HOSTNAME/exec-{plugin-instance}/gauge-{tag_key1=tag_value1;tag_key2=tag_value2} N:1479189638358
+```
+
+```ls
+series e:$HOSTNAME m:collectd.{plugin-instance}={value} t:tag_key1=tag_value1 t:tag_key2=tag_value2
+```
+
+This processing is enabled subject to the following conditions:
+
+* The `type_instance` field contains an equal sign.
+* Each key/value pair consists of key, followed by equal sign, followed by value.
+* Key/value pairs should be separated by semicolon `;`.
+
 ## Install From Sources
 
 ### Ubuntu / Debian
