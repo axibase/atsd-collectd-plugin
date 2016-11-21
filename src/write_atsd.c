@@ -338,7 +338,6 @@ static void wa_callback_free(void *data) {
 
 
     c_avl_destroy(cb->cache_tree);
-    sfree(cb->cache_tree);
 
     for (i=0; i<cb->wa_num_caches;i++){
         sfree(cb->wa_caches[i]->name);
