@@ -1194,7 +1194,6 @@ static int wa_config_node(oconfig_item_t * ci) {
     }
 
     if (status != 0) {
-        wa_callback_free(cb);
         return (status);
     }
 
