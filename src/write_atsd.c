@@ -1154,26 +1154,45 @@ static int wa_config_node(oconfig_item_t * ci) {
         oconfig_item_t *child = ci->children + i;
 
         if (strcasecmp("atsdurl", child->key) == 0) {
-
-            int args = sscanf(child->values[0].value.string, "%99[^:]://%99[^:]:%99[^\n]", cb->protocol, cb->node, cb->service);
-            if (args == 3) {
-                if (strcasecmp("UDP", cb->protocol) != 0 &&
-                    strcasecmp("TCP", cb->protocol) != 0) {
-                    ERROR("write_atsd plugin: Unknown protocol (%s)", cb->protocol);
-                    status = -1;
-                }
-            } else if (args == 2) {
-                if (strcasecmp("TCP", cb->protocol) == 0) {
-                    sfree(cb->service);
-                    cb->service = strdup("8081");
-                }
-                else if (strcasecmp("UDP", cb->protocol) == 0) {
-                    sfree(cb->service);
-                    cb->service = strdup("8082");
-                }
-            } else {
+            int s = 0;
+            for (int i = 0; i < strlen(child->values[0].value.string); i++)
+                if (child->values[0].value.string[i] == ':')
+                    s++;
+            if (s > 2) {
                 ERROR("write_atsd plugin: failed to parse atsdurl (%s)", child->values[0].value.string);
                 status = -1;
+            } else {
+                int args = sscanf(child->values[0].value.string, "%99[^:]://%99[^:]:%99[^\n]", cb->protocol, cb->node,
+                                  cb->service);
+                if (args == 3) {
+                    if (strcasecmp("UDP", cb->protocol) != 0 &&
+                        strcasecmp("TCP", cb->protocol) != 0) {
+                        ERROR("write_atsd plugin: Unknown protocol (%s)", cb->protocol);
+                        status = -1;
+                    }
+                } else if (args == 2) {
+                    if (strlen(cb->protocol) == 0) {
+                        ERROR("write_atsd plugin: No protocol given (%s)", child->values[0].value.string);
+                        status = -1;
+                    } else if (strlen(cb->node) == 0) {
+                        ERROR("write_atsd plugin: No hostname given (%s)", child->values[0].value.string);
+                        status = -1;
+                    } else {
+                        if (strcasecmp("TCP", cb->protocol) == 0) {
+                            sfree(cb->service);
+                            cb->service = strdup("8081");
+                        } else if (strcasecmp("UDP", cb->protocol) == 0) {
+                            sfree(cb->service);
+                            cb->service = strdup("8082");
+                        } else {
+                            ERROR("write_atsd plugin: Unknown protocol (%s)", cb->protocol);
+                            status = -1;
+                        }
+                    }
+                } else {
+                    ERROR("write_atsd plugin: failed to parse atsdurl (%s)", child->values[0].value.string);
+                    status = -1;
+                }
             }
         }
         else if (strcasecmp("Prefix", child->key) == 0)
