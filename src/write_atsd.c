@@ -339,7 +339,6 @@ static void wa_callback_free(void *data) {
 
 
     c_avl_destroy(cb->cache_tree);
-    sfree(cb->cache_tree);
 
     for (i=0; i<cb->wa_num_caches;i++){
         sfree(cb->wa_caches[i]->name);
@@ -500,7 +499,6 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
 
     rates = uc_get_rate(ds, vl);
     if (rates == NULL) {
-        ERROR("write_atsd plugin: uc_get_rate failed.");
         return -1;
     }
 
