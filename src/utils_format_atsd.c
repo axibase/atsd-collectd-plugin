@@ -25,6 +25,7 @@
 #include "plugin.h"
 #include "common.h"
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "utils_format_atsd.h"
@@ -88,15 +89,13 @@ int format_value(char *ret, size_t ret_len, int i, const data_set_t *ds, const v
 
     if (ds->ds[i].type == DS_TYPE_GAUGE) {
         BUFFER_ADD (GAUGE_FORMAT, vl->values[i].gauge);
-    }
-    else if (rates != NULL) {
+    } else if (rates != NULL) {
         if (rates[i] == 0) {
             BUFFER_ADD ("%i", (int) rates[i]);
         } else {
-          BUFFER_ADD ("%f", rates[i]);
+            BUFFER_ADD ("%f", rates[i]);
         }
-    }
-    else if (ds->ds[i].type == DS_TYPE_COUNTER)
+    } else if (ds->ds[i].type == DS_TYPE_COUNTER)
         BUFFER_ADD ("%llu", vl->values[i].counter);
     else if (ds->ds[i].type == DS_TYPE_DERIVE)
         BUFFER_ADD ("%"
@@ -113,13 +112,24 @@ int format_value(char *ret, size_t ret_len, int i, const data_set_t *ds, const v
     return (0);
 }
 
+static int startsWith(const char *pre, const char *str) {
+    size_t lenpre = strlen(pre),
+            lenstr = strlen(str);
+    return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
+}
+
 int check_entity(char *ret, const int ret_len, const char *entity, const char *host_name, _Bool short_hostname) {
 
     char *host;
     char *c;
+    char tmp[100];
 
-    host = strdup(host_name);
-
+    if ((strcasecmp("localhost", host_name) == 0 || startsWith(host_name, "localhost."))){
+        gethostname(tmp, sizeof(tmp));
+        host = strdup(tmp);
+    } else {
+        host = strdup(host_name);
+    }
     if (short_hostname) {
         for (c = host; *c; c++) {
             if (*c == '.' && c != host) {
@@ -157,4 +167,3 @@ int check_entity(char *ret, const int ret_len, const char *entity, const char *h
     sfree(host);
     return 0;
 }
-
