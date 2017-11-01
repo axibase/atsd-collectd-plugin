@@ -1,10 +1,5 @@
 /**
  * collectd - src/utils_format_atsd.c
- * Copyright (C) 2012       Pierre-Yves Ritschard
- * Copyright (C) 2011       Scott Sanders
- * Copyright (C) 2009       Paul Sadauskas
- * Copyright (C) 2009       Doug MacEachern
- * Copyright (C) 2007-2013  Florian octo Forster
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,12 +16,13 @@
  *
  **/
 
-#include "collectd.h"
-#include "plugin.h"
 #include "common.h"
+#include "plugin.h"
+#include "collectd.h"
 
-#include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "utils_format_atsd.h"
 
@@ -39,131 +35,186 @@
  * Returns strlen(src) + MIN(siz, strlen(initial dst)).
  * If retval >= siz, truncation occurred.
  */
-size_t strlcat(char *dst, const char *src, size_t siz) {
-    char *d = dst;
-    const char *s = src;
-    size_t n = siz;
-    size_t dlen;
+static size_t strlcat(char *dst, const char *src, size_t siz) {
+  char *d = dst;
+  const char *s = src;
+  size_t n = siz;
+  size_t dlen;
 
-    /* Find the end of dst and adjust bytes left but don't go past end */
-    while (n-- != 0 && *d != '\0')
-        d++;
-    dlen = d - dst;
-    n = siz - dlen;
+  /* Find the end of dst and adjust bytes left but don't go past end */
+  while (n-- != 0 && *d != '\0')
+    d++;
+  dlen = d - dst;
+  n = siz - dlen;
 
-    if (n == 0)
-        return (dlen + strlen(s));
-    while (*s != '\0') {
-        if (n != 1) {
-            *d++ = *s;
-            n--;
-        }
-        s++;
+  if (n == 0)
+    return (dlen + strlen(s));
+  while (*s != '\0') {
+    if (n != 1) {
+      *d++ = *s;
+      n--;
     }
-    *d = '\0';
+    s++;
+  }
+  *d = '\0';
 
-    return (dlen + (s - src));        /* count does not include NUL */
+  return (dlen + (s - src)); /* count does not include NUL */
 }
 
-int format_value(char *ret, size_t ret_len, int i, const data_set_t *ds, const value_list_t *vl,
-                 const gauge_t *rates) {
-    int status;
-    size_t offset = 0;
-    assert(0 == strcmp(ds->type, vl->type));
+char *escape_atsd_string(char *dst_buf, const char *src_buf, size_t n) {
+  char tmp_buf[6 * DATA_MAX_NAME_LEN];
+  const char *s;
+  char *t;
+  size_t k;
 
+  k = 0;
+  s = src_buf;
+  t = tmp_buf;
 
-#define BUFFER_ADD(...) do { \
-            status = snprintf (ret + offset, ret_len - offset, \
-                    __VA_ARGS__); \
-            if (status < 1) \
-            { \
-                return (-1); \
-            } \
-            else if (((size_t) status) >= (ret_len - offset)) \
-            { \
-                return (-1); \
-            } \
-            else \
-            offset += ((size_t) status); \
-        } while (0)
-
-    if (ds->ds[i].type == DS_TYPE_GAUGE) {
-        BUFFER_ADD (GAUGE_FORMAT, vl->values[i].gauge);
-    } else if (rates != NULL) {
-        if (rates[i] == 0) {
-            BUFFER_ADD ("%i", (int) rates[i]);
-        } else {
-            BUFFER_ADD ("%f", rates[i]);
-        }
-    } else if (ds->ds[i].type == DS_TYPE_COUNTER)
-        BUFFER_ADD ("%llu", vl->values[i].counter);
-    else if (ds->ds[i].type == DS_TYPE_DERIVE)
-        BUFFER_ADD ("%"
-                            PRIi64, vl->values[i].derive);
-    else if (ds->ds[i].type == DS_TYPE_ABSOLUTE)
-        BUFFER_ADD ("%"
-                            PRIu64, vl->values[i].absolute);
-    else {
-        ERROR("gr_format_values plugin: Unknown data source type: %i",
-              ds->ds[i].type);
-        return (-1);
+  if (n > sizeof(tmp_buf))
+    n = sizeof(tmp_buf);
+  while (k < n && *s) {
+    if (*s == '"') {
+      *t = '"';
+      t++;
     }
+    *t = *s;
+    t++;
+    s++;
+    k++;
+  }
+  *t = '\0';
+
+  strncpy(dst_buf, tmp_buf, n);
+  return dst_buf;
+}
+
+int format_value(char *ret, size_t ret_len, size_t index, const data_set_t *ds,
+                 const value_list_t *vl, gauge_t *rates) {
+  size_t offset = 0;
+  int status;
+
+  assert(0 == strcmp(ds->type, vl->type));
+
+  memset(ret, 0, ret_len);
+
+#define BUFFER_ADD(...)                                                        \
+  do {                                                                         \
+    status = snprintf(ret + offset, ret_len - offset, __VA_ARGS__);            \
+    if (status < 1) {                                                          \
+      return -1;                                                               \
+    } else if (((size_t)status) >= (ret_len - offset)) {                       \
+      return -1;                                                               \
+    } else                                                                     \
+      offset += ((size_t)status);                                              \
+  } while (0)
+
+  if (ds->ds[index].type == DS_TYPE_GAUGE) {
+    BUFFER_ADD(GAUGE_FORMAT, vl->values[index].gauge);
+  } else {
+    BUFFER_ADD("%f", rates[index]);
+  }
+
 #undef BUFFER_ADD
-    return (0);
+
+  return 0;
 }
 
-static int startsWith(const char *pre, const char *str) {
-    size_t lenpre = strlen(pre),
-            lenstr = strlen(str);
-    return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
+static int starts_with(const char *pre, const char *str) {
+  size_t lenpre = strlen(pre), lenstr = strlen(str);
+  return lenstr < lenpre ? 0 : strncmp(pre, str, lenpre) == 0;
 }
 
-int check_entity(char *ret, const int ret_len, const char *entity, const char *host_name, _Bool short_hostname) {
+int format_entity(char *ret, const int ret_len, const char *entity,
+                  const char *host_name, _Bool short_hostname) {
+  char *host, *c;
+  char buf[HOST_NAME_MAX];
+  const char *e;
+  _Bool use_entity = true;
 
-    char *host;
-    char *c;
-    char tmp[100];
-
-    if ((strcasecmp("localhost", host_name) == 0 || startsWith(host_name, "localhost."))){
-        gethostname(tmp, sizeof(tmp));
-        host = strdup(tmp);
-    } else {
-        host = strdup(host_name);
+  if (entity != NULL) {
+    for (e = entity; *e; e++) {
+      if (*e == ' ') {
+        use_entity = false;
+        break;
+      }
     }
-    if (short_hostname) {
-        for (c = host; *c; c++) {
-            if (*c == '.' && c != host) {
-                *c = '\0';
-                break;
-            }
-        }
-    }
+  } else {
+    use_entity = false;
+  }
 
-    if (entity == NULL) {
-        sstrncpy(ret, host, ret_len);
-        sfree(host);
-        return 0;
-    }
-
-    int i = 0;
-    int e_length = strlen(entity);
-
-    if (e_length != 0) {
-        while (i < e_length) {
-            if (entity[i] == ' ') {
-                sstrncpy(ret, host, ret_len);
-                sfree(host);
-                return 0;
-            }
-            i++;
-        }
-    } else {
-        sstrncpy(ret, host, ret_len);
-        sfree(host);
-        return 0;
-    }
-
+  if (use_entity) {
     sstrncpy(ret, entity, ret_len);
+  } else {
+    if (strcasecmp("localhost", host_name) == 0 ||
+        starts_with(host_name, "localhost.")) {
+      gethostname(buf, sizeof buf);
+      host = strdup(buf);
+    } else {
+      host = strdup(host_name);
+    }
+
+    if (short_hostname) {
+      for (c = host + 1; *c; c++) {
+        if (*c == '.') {
+          *c = '\0';
+          break;
+        }
+      }
+    }
+
+    sstrncpy(ret, host, ret_len);
     sfree(host);
-    return 0;
+  }
+
+  return 0;
+}
+
+static void metric_name_append(char *metric_name, const char *str, size_t n) {
+  if (*str != '\0') {
+    if (*metric_name != '\0')
+      strlcat(metric_name, ".", n);
+    strlcat(metric_name, str, n);
+  }
+}
+
+int format_atsd_command(char *buffer, size_t buffer_len, const char *entity,
+                        const char *prefix, size_t index, const data_set_t *ds,
+                        const value_list_t *vl, gauge_t *rates) {
+  int status;
+  char metric_name[6 * DATA_MAX_NAME_LEN];
+  char escape_buffer[6 * DATA_MAX_NAME_LEN];
+  char value_str[128];
+  size_t written;
+
+  status = format_value(value_str, sizeof(value_str), index, ds, vl, rates);
+  if (status != 0)
+    return status;
+
+  metric_name[0] = '\0';
+  metric_name_append(metric_name, prefix, sizeof metric_name);
+  metric_name_append(metric_name, vl->plugin, sizeof metric_name);
+  metric_name_append(metric_name, vl->type, sizeof metric_name);
+  metric_name_append(metric_name, vl->type_instance, sizeof metric_name);
+  if (strcasecmp(ds->ds[index].name, "value") != 0)
+    metric_name_append(metric_name, ds->ds[index].name, sizeof metric_name);
+
+  memset(buffer, 0, buffer_len);
+
+  escape_atsd_string(escape_buffer, entity, sizeof escape_buffer);
+  escape_atsd_string(metric_name, metric_name, sizeof metric_name);
+
+  written = 0;
+  written +=
+      snprintf(buffer, buffer_len, "series e:\"%s\" ms:%" PRIu64 " m:\"%s\"=%s",
+               escape_buffer, CDTIME_T_TO_MS(vl->time), metric_name, value_str);
+  if (*vl->plugin_instance != 0 && buffer_len > written)
+    written +=
+        snprintf(buffer + written, buffer_len - written, " t:instance=\"%s\"",
+                 escape_atsd_string(escape_buffer, vl->plugin_instance,
+                                    sizeof escape_buffer));
+  if (*vl->plugin_instance != 0 && buffer_len > written)
+    snprintf(buffer + written, buffer_len - written, " \n");
+
+  return 0;
 }
