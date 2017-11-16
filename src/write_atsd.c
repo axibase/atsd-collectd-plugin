@@ -172,13 +172,11 @@ int compare_atsd_keys(atsd_key_t *key_a, atsd_key_t *key_b) {
 /* wa_force_reconnect_check closes cb->sock_fd when it was open for longer
  * than cb->reconnect_interval. Must hold cb->send_lock when calling. */
 static void wa_force_reconnect_check(struct wa_callback *cb) {
-  cdtime_t now;
-
   if (cb->reconnect_interval == 0)
     return;
 
   /* check if address changes if addr_timeout */
-  now = cdtime();
+  cdtime_t now = cdtime();
   if ((now - cb->last_reconnect_time) < cb->reconnect_interval)
     return;
 
@@ -229,9 +227,7 @@ static int wa_flush_nolock(cdtime_t timeout, struct wa_callback *cb) {
 
   /* timeout == 0  => flush unconditionally */
   if (timeout > 0) {
-    cdtime_t now;
-
-    now = cdtime();
+    cdtime_t now = cdtime();
     if ((cb->send_buf_init_time + timeout) > now)
       return 0;
   }
@@ -248,18 +244,15 @@ static int wa_flush_nolock(cdtime_t timeout, struct wa_callback *cb) {
 }
 
 static int wa_callback_init(struct wa_callback *cb) {
-  struct addrinfo *ai_list;
-  cdtime_t now;
   int status;
-
-  char connerr[1024] = "";
+  char connerr[1024];
 
   if (cb->sock_fd > 0)
     return 0;
 
   /* Don't try to reconnect too often. By default, one reconnection attempt
    * is made per second. */
-  now = cdtime();
+  cdtime_t now = cdtime();
   if ((now - cb->last_connect_time) < WA_MIN_RECONNECT_INTERVAL)
     return (EAGAIN);
   cb->last_connect_time = now;
@@ -273,6 +266,7 @@ static int wa_callback_init(struct wa_callback *cb) {
   else
     ai_hints.ai_socktype = SOCK_DGRAM;
 
+  struct addrinfo *ai_list;
   status = getaddrinfo(cb->node, cb->service, &ai_hints, &ai_list);
   if (status != 0) {
     ERROR("write_atsd plugin: getaddrinfo (%s, %s, %s) failed: %s", cb->node,
@@ -336,9 +330,6 @@ static int wa_callback_init(struct wa_callback *cb) {
 }
 
 static void wa_cb_free(struct wa_callback *cb) {
-  atsd_key_t *atsd_stored_key = NULL;
-  atsd_value_t *atsd_stored_value = NULL;
-  struct wa_cache_s *cache, *next_cache;
   void *empty;
 
   if (cb == NULL)
@@ -367,6 +358,8 @@ static void wa_cb_free(struct wa_callback *cb) {
   if (cb->prefix != NULL)
     sfree(cb->prefix);
 
+  atsd_key_t *atsd_stored_key;
+  atsd_value_t *atsd_stored_value;
   if (cb->value_cache != NULL) {
     while (c_avl_pick(cb->value_cache, (void *)&atsd_stored_key,
                       (void *)&atsd_stored_value) == 0) {
@@ -385,6 +378,7 @@ static void wa_cb_free(struct wa_callback *cb) {
     cb->metric_cache = NULL;
   }
 
+  struct wa_cache_s *cache, *next_cache;
   cache = cb->wa_caches;
   while (cache != NULL) {
     next_cache = cache->next;
@@ -409,9 +403,8 @@ static void wa_callback_free(void *cb) {
 
 static int wa_send_message(char const *message, struct wa_callback *cb) {
   int status;
-  size_t message_len;
 
-  message_len = strlen(message);
+  size_t message_len = strlen(message);
 
   pthread_mutex_lock(&cb->send_lock);
 
@@ -455,13 +448,11 @@ static int wa_send_message(char const *message, struct wa_callback *cb) {
 static int wa_update_property(const value_list_t *vl, const char *entity,
                               struct wa_callback *cb) {
   int ret;
-  struct utsname buf;
-  cdtime_t now;
   char command[1024];
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
-  size_t written = 0;
 
-  now = cdtime();
+  cdtime_t now = cdtime();
+  size_t written = 0;
   if ((now - cb->last_property_time) > WA_PROPERTY_INTERVAL) {
     cb->last_property_time = now;
 
@@ -472,21 +463,22 @@ static int wa_update_property(const value_list_t *vl, const char *entity,
         CDTIME_T_TO_MS(vl->time),
         escape_atsd_string(escape_buffer, vl->host, sizeof escape_buffer));
 
-    ret = uname(&buf);
+    struct utsname uts_buf;
+    ret = uname(&uts_buf);
     if (!ret) {
-      escape_atsd_string(buf.sysname, buf.sysname, sizeof buf.sysname);
-      escape_atsd_string(buf.sysname, buf.nodename, sizeof buf.nodename);
-      escape_atsd_string(buf.sysname, buf.release, sizeof buf.release);
-      escape_atsd_string(buf.sysname, buf.version, sizeof buf.version);
-      escape_atsd_string(buf.sysname, buf.machine, sizeof buf.machine);
+      escape_atsd_string(uts_buf.sysname, uts_buf.sysname, sizeof(uts_buf.sysname));
+      escape_atsd_string(uts_buf.nodename, uts_buf.nodename, sizeof(uts_buf.nodename));
+      escape_atsd_string(uts_buf.release, uts_buf.release, sizeof(uts_buf.release));
+      escape_atsd_string(uts_buf.version, uts_buf.version, sizeof(uts_buf.version));
+      escape_atsd_string(uts_buf.machine, uts_buf.machine, sizeof(uts_buf.machine));
       written += snprintf(command + written, sizeof(command) - written,
                           " v:OperatingSystem=\"%s\""
                           " v:Node=\"%s\""
                           " v:Kernel_Release_Version=\"%s\""
                           " v:OS_Version=\"%s\""
                           " v:Hardware=\"%s\"",
-                          buf.sysname, buf.nodename, buf.release, buf.version,
-                          buf.machine);
+                          uts_buf.sysname, uts_buf.nodename, uts_buf.release, uts_buf.version,
+                          uts_buf.machine);
     }
 
     snprintf(command + written, sizeof(command) - written, "\n");
@@ -498,12 +490,6 @@ static int wa_update_property(const value_list_t *vl, const char *entity,
 static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
                              struct wa_callback *cb, _Bool *update_series,
                              _Bool *update_metrics) {
-
-  atsd_key_t *atsd_stored_key;
-  atsd_value_t *atsd_stored_value;
-  struct wa_cache_s *cache;
-  double stored_value, cur_value;
-  double diff;
   int status;
 
   *update_series = true;
@@ -525,6 +511,8 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
   status = c_avl_get(cb->metric_cache, ak, NULL);
   pthread_mutex_unlock(&cb->metric_cache_lock);
 
+  atsd_key_t *atsd_stored_key;
+  atsd_value_t *atsd_stored_value;
   if (status != 0) {
     atsd_stored_key = (atsd_key_t *)malloc(sizeof(atsd_key_t));
     if (atsd_stored_key == NULL) {
@@ -540,6 +528,7 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
     *update_metrics = true;
   }
 
+  struct wa_cache_s *cache;
   for (cache = cb->wa_caches; cache != NULL; cache = cache->next)
     if (strcasecmp(ak->plugin, cache->name) == 0)
       break;
@@ -559,9 +548,9 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
       return 0;
     }
 
-    cur_value = av->value;
-    stored_value = atsd_stored_value->value;
-    diff = fabs(cur_value - stored_value);
+    double cur_value = av->value;
+    double stored_value = atsd_stored_value->value;
+    double diff = fabs(cur_value - stored_value);
 
     if ((av->time - atsd_stored_value->time >= cache->interval * 1000) ||
         (diff > (cache->threshold) * stored_value / 100)) {
@@ -606,21 +595,11 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
 static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
                              struct wa_callback *cb) {
   int status;
-  size_t i;
-  gauge_t *rates;
-  atsd_key_t cache_key;
-  atsd_value_t cache_value;
-  format_info_t format;
-
-  _Bool update_metrics;
-  _Bool update_series;
 
   char commands[1024];
   char entity[WA_MAX_LENGTH];
 
-  status = 0;
-  rates = NULL;
-
+  gauge_t *rates = NULL;
   if (cb->store_rates) {
     rates = uc_get_rate(ds, vl);
     if (rates == NULL) {
@@ -642,6 +621,7 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
     return -1;
   }
 
+  format_info_t format;
   format.buffer = commands;
   format.buffer_len = sizeof(commands);
   format.entity = entity;
@@ -650,12 +630,14 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
   format.ds = ds;
   format.rates = rates;
 
-  for (i = 0; i < ds->ds_num; i++) {
+  for (size_t i = 0; i < ds->ds_num; i++) {
     if (rates != NULL && isnan(rates[i]))
       continue;
 
     format.index = i;
 
+    atsd_key_t cache_key;
+    atsd_value_t cache_value;
     strncpy(cache_key.host, vl->host, DATA_MAX_NAME_LEN);
     strncpy(cache_key.plugin, vl->plugin, DATA_MAX_NAME_LEN);
     strncpy(cache_key.plugin_instance, vl->plugin_instance, DATA_MAX_NAME_LEN);
@@ -670,6 +652,9 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
     }
 
     cache_value.time = CDTIME_T_TO_MS(vl->time);
+
+    _Bool update_metrics;
+    _Bool update_series;
 
     status = check_cache_value(&cache_key, &cache_value, cb, &update_series,
                                &update_metrics);
@@ -703,12 +688,9 @@ static int wa_write(const data_set_t *ds, const value_list_t *vl,
 }
 
 static int wa_config_cache(struct wa_callback *cb, oconfig_item_t *child) {
+  int status;
 
-  int q, status;
-  struct wa_cache_s *wc;
-
-  wc = malloc(sizeof(struct wa_cache_s));
-
+  struct wa_cache_s *wc = malloc(sizeof(struct wa_cache_s));
   if (wc == NULL) {
     ERROR("write_atsd plugin: malloc failed.");
     return -1;
@@ -722,7 +704,7 @@ static int wa_config_cache(struct wa_callback *cb, oconfig_item_t *child) {
   if (status != 0)
     return status;
 
-  for (q = 0; q < child->children_num; q++) {
+  for (int q = 0; q < child->children_num; q++) {
     oconfig_item_t *grandchild = child->children + q;
 
     if (strcasecmp("Interval", grandchild->key) == 0)
@@ -744,10 +726,7 @@ static int wa_config_cache(struct wa_callback *cb, oconfig_item_t *child) {
 }
 
 static int wa_config_node(oconfig_item_t *ci) {
-  struct wa_callback *cb;
-  char callback_name[DATA_MAX_NAME_LEN];
-
-  cb = calloc(1, sizeof(*cb));
+  struct wa_callback *cb = calloc(1, sizeof(*cb));
   if (cb == NULL) {
     ERROR("write_atsd plugin: calloc failed.");
     return -1;
@@ -869,6 +848,7 @@ static int wa_config_node(oconfig_item_t *ci) {
     }
   }
 
+  char callback_name[DATA_MAX_NAME_LEN];
   if (cb->name == NULL)
     snprintf(callback_name, sizeof(callback_name), "write_atsd/%s/%s/%s",
              cb->node != NULL ? cb->node : WA_DEFAULT_NODE,
@@ -886,9 +866,7 @@ static int wa_config_node(oconfig_item_t *ci) {
 }
 
 static int wa_complex_config(oconfig_item_t *ci) {
-  int i;
-
-  for (i = 0; i < ci->children_num; i++) {
+  for (int i = 0; i < ci->children_num; i++) {
     oconfig_item_t *child = ci->children + i;
 
     if (strcasecmp("Node", child->key) == 0) {

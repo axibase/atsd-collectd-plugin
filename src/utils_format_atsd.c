@@ -113,11 +113,9 @@ static int add_tag(tag_key_val_t **tags, const char *key, const char *val) {
 }
 
 static void free_tags(tag_key_val_t *tags) {
-  tag_key_val_t *tag, *next_tag;
-
-  tag = tags;
+  tag_key_val_t *tag = tags;
   while (tag != NULL) {
-    next_tag = tag->next;
+    tag_key_val_t * next_tag = tag->next;
     sfree(tag->key);
     sfree(tag->val);
     sfree(tag);
@@ -153,13 +151,9 @@ static size_t strlcat(char *dst, const char *src, size_t siz) {
 
 char *escape_atsd_string(char *dst_buf, const char *src_buf, size_t n) {
   char tmp_buf[6 * DATA_MAX_NAME_LEN];
-  const char *s;
-  char *t;
-  size_t k;
-
-  k = 0;
-  s = src_buf;
-  t = tmp_buf;
+  const char *s = src_buf;
+  char *t = tmp_buf;
+  size_t k = 0;
 
   if (n > sizeof(tmp_buf))
     n = sizeof(tmp_buf);
@@ -243,13 +237,12 @@ static int starts_with(const char *pre, const char *str) {
 
 int format_entity(char *ret, const int ret_len, const char *entity,
                   const char *host_name, _Bool short_hostname) {
-  char *host, *c;
+  char *host;
   char buf[HOST_NAME_MAX];
-  const char *e;
   _Bool use_entity = true;
 
   if (entity != NULL) {
-    for (e = entity; *e; e++) {
+    for (const char *e = entity; *e != '\0'; e++) {
       if (*e == ' ') {
         use_entity = false;
         break;
@@ -276,7 +269,7 @@ int format_entity(char *ret, const int ret_len, const char *entity,
     }
 
     if (short_hostname) {
-      c = strchr(host + 1, '.');
+      char *c = strchr(host + 1, '.');
       if (c != NULL && *c == '.')
         *c = '\0';
     }
@@ -298,13 +291,10 @@ static void metric_name_append(char *metric_name, const char *str, size_t n) {
 
 static int format_metric_name(char *buffer, size_t len, format_info_t *format,
                                name_rule_t *rule) {
-  name_part_t name_part;
-  size_t i;
-
   memset(buffer, 0, len);
   metric_name_append(buffer, format->prefix, len);
-  for (i = 0; rule->name_parts[i].part_type != PART_END; i++) {
-    name_part = rule->name_parts[i];
+  for (size_t i = 0; rule->name_parts[i].part_type != PART_END; i++) {
+    name_part_t name_part = rule->name_parts[i];
     switch (name_part.part_type) {
     case PART_STR:
       metric_name_append(buffer, name_part.str_value, len);
@@ -404,10 +394,9 @@ static int format_series(series_t *series, format_info_t *format,
 }
 
 static int derive_series(series_t *series_buffer, format_info_t *format) {
-  char *key, *value, *strtok_ctx;
-  char tmp[DATA_MAX_NAME_LEN];
-  _Bool preserve_original = true;
   int ret;
+
+  _Bool preserve_original = true;
   size_t count = 0;
 
   if (format->rates != NULL && strcasecmp(format->vl->plugin, "cpu") == 0 &&
@@ -438,9 +427,12 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
       return -1;
 
     if (strchr(format->vl->type_instance, ';')) {
+      char *key, *strtok_ctx;
+      char tmp[DATA_MAX_NAME_LEN];
+
       strncpy(tmp, format->vl->type_instance, sizeof(tmp));
       while ((key = strtok_r(tmp, ";", &strtok_ctx)) != NULL) {
-        value = strchr(key, '=');
+        char *value = strchr(key, '=');
         if (value) {
           *value++ = '\0';
           ret = add_tag(&series_buffer->series_tags, key, value);
@@ -478,12 +470,9 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
 
 static size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t *tags) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
-  tag_key_val_t *tag;
-  size_t written;
 
-  written = 0;
-
-  for (tag = tags; tag != NULL; tag = tag->next) {
+  size_t written = 0;
+  for (tag_key_val_t *tag = tags; tag != NULL; tag = tag->next) {
     escape_atsd_string(escape_buffer, tag->key, sizeof escape_buffer);
     written += snprintf(buffer + written, buffer_len - written,
                         " t:\"%s\"=", escape_buffer);
@@ -499,10 +488,8 @@ static size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t *tags) 
 static size_t format_series_command(char *buffer, size_t buffer_len,
                              series_t *series) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
-  size_t written;
 
-  written = 0;
-
+  size_t written = 0;
   written += snprintf(buffer, buffer_len, "series");
   escape_atsd_string(escape_buffer, series->entity, sizeof escape_buffer);
   written += snprintf(buffer + written, buffer_len - written, " e:\"%s\"",
@@ -522,10 +509,8 @@ static size_t format_series_command(char *buffer, size_t buffer_len,
 static size_t format_metric_command(char *buffer, size_t buffer_len,
                              series_t *series) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
-  size_t written;
 
-  written = 0;
-
+  size_t written = 0;
   written += snprintf(buffer, buffer_len, "metric");
   escape_atsd_string(escape_buffer, series->metric, sizeof escape_buffer);
   written += snprintf(buffer + written, buffer_len - written, " m:\"%s\"",
@@ -538,17 +523,15 @@ static size_t format_metric_command(char *buffer, size_t buffer_len,
 }
 
 int format_atsd_command(format_info_t *format, _Bool append_metrics) {
-  size_t series_count, i, written;
   series_t series_buffer[MAX_DERIVED_SERIES];
-
-  series_count = derive_series(series_buffer, format);
+  size_t series_count = derive_series(series_buffer, format);
 
   if (series_count < 0)
     return -1;
 
   memset(format->buffer, 0, format->buffer_len);
-  written = 0;
-  for (i = 0; i < series_count; i++) {
+  size_t written = 0;
+  for (size_t i = 0; i < series_count; i++) {
     if (append_metrics) {
       written += format_metric_command(format->buffer + written,
                                        format->buffer_len - written,
