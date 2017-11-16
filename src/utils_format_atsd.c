@@ -198,7 +198,7 @@ int get_value(format_info_t *format, double *value) {
   return 0;
 }
 
-int format_value(char *ret, size_t ret_len, format_info_t *format) {
+static int format_value(char *ret, size_t ret_len, format_info_t *format) {
   size_t offset = 0;
   int status;
 
@@ -403,7 +403,7 @@ static int format_series(series_t *series, format_info_t *format,
   return 0;
 }
 
-int derive_series(series_t *series_buffer, format_info_t *format) {
+static int derive_series(series_t *series_buffer, format_info_t *format) {
   char *key, *value, *strtok_ctx;
   char tmp[DATA_MAX_NAME_LEN];
   _Bool preserve_original = true;
@@ -476,7 +476,7 @@ int derive_series(series_t *series_buffer, format_info_t *format) {
   return count;
 }
 
-size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t *tags) {
+static size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t *tags) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
   tag_key_val_t *tag;
   size_t written;
@@ -496,7 +496,7 @@ size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t *tags) {
   return written;
 }
 
-size_t format_series_command(char *buffer, size_t buffer_len,
+static size_t format_series_command(char *buffer, size_t buffer_len,
                              series_t *series) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
   size_t written;
@@ -519,7 +519,7 @@ size_t format_series_command(char *buffer, size_t buffer_len,
   return written;
 }
 
-size_t format_metric_command(char *buffer, size_t buffer_len,
+static size_t format_metric_command(char *buffer, size_t buffer_len,
                              series_t *series) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
   size_t written;
