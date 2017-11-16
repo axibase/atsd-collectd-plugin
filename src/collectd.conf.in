@@ -1617,8 +1617,16 @@
 #    Entity "example-entity"
 #    Prefix "collectd"
 #    ShortHostname false
+#    <Cache "df">
+#      Interval 3
+#      Threshold 1
+#    </Cache>
+#    <Cache "disk">
+#      Interval 3
+#      Threshold 1
+#    </Cache>
 #  </Node>
-# </Plugin>
+#</Plugin>
 
 #<Plugin write_graphite>
 #  <Node "example">

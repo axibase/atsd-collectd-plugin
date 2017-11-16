@@ -25,6 +25,10 @@
  *     Entity "entity"
  *     Prefix "collectd"
  *     ShortHostname false
+ *     <Cache "df">
+ *       Interval 300
+ *       Threshold 0
+ *     </Cache>
  *   </Node>
  * </Plugin>
  */
