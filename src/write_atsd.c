@@ -17,7 +17,7 @@
  * Based on the write_graphite plugin.
  **/
 
-/* write_atsd plugin configuation example
+/* write_atsd plugin configuration example
  *
  * <Plugin write_atsd>
  *   <Node "default">
