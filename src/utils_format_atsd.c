@@ -411,15 +411,32 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
     count++;
     series_buffer++;
   }
-  /* Produce derived series for df.percent_bytes: used_reserved=100%-free  */
-  else if (strcasecmp(format->vl->plugin, "df") == 0 &&
-             strcasecmp(format->vl->type, "percent_bytes") == 0 &&
-             strcasecmp(format->vl->type_instance, "free") == 0) {
-    ret = format_series(series_buffer, format,
-                  NAME_PATTERN_PTR(PLUGIN, TYPE, STRING("used_reserved")), true,
-                  invert_percent);
-    if (ret != 0)
-      return -1;
+  else if (strcasecmp(format->vl->plugin, "df") == 0) {
+    /* Produce derived series for df.percent_bytes: used_reserved=100%-free  */
+    if(strcasecmp(format->vl->type, "percent_bytes") == 0 &&
+       strcasecmp(format->vl->type_instance, "free") == 0) {
+      ret = format_series(series_buffer, format,
+                          NAME_PATTERN_PTR(PLUGIN, TYPE, STRING("used_reserved")), true,
+                           invert_percent);
+      if (ret != 0)
+        return -1;
+    } else {
+      ret = format_series(
+          series_buffer, format,
+          NAME_PATTERN_PTR(PLUGIN, TYPE, TYPE_INSTANCE, DATA_SOURCE, IS_RAW),
+          true, NULL);
+      if (ret != 0)
+        return -1;
+      preserve_original = false;
+    }
+
+    /* Fetch original unescaped disk name from meta */
+    char *disk_name;
+    ret = meta_data_get_string(format->vl->meta, "df:disk_name", &disk_name);
+    if (ret == 0) {
+      add_tag(&series_buffer->metric_tags, "disk_name", disk_name);
+      sfree(disk_name);
+    }
 
     count++;
     series_buffer++;
