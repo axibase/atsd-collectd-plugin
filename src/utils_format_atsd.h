@@ -41,7 +41,7 @@ typedef struct format_info_s format_info_t;
 
 char *escape_atsd_string(char *dst_buf, const char *src_buf, size_t n);
 
-double get_value(format_info_t *format);
+int get_value(format_info_t *format, double *value);
 
 int format_value(char *ret, size_t ret_len, format_info_t *format);
 

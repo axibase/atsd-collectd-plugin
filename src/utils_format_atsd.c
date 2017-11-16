@@ -94,12 +94,18 @@ typedef struct value_index_t {
 static int add_tag(tag_key_val_t **tags, const char *key, const char *val) {
   tag_key_val_t *tag = malloc(sizeof(tag_key_val_t));
   if (tag == NULL) {
-    ERROR("atsd_write: out of memory");
+    ERROR("atsd_write: malloc failed");
     return -1;
   }
 
   tag->key = strdup(key);
   tag->val = strdup(val);
+
+  if (tag->key == NULL || tag->val == NULL) {
+    ERROR("atsd_write: strdup failed");
+    return -1;
+  }
+
   tag->next = *tags;
   *tags = tag;
 
@@ -173,26 +179,28 @@ char *escape_atsd_string(char *dst_buf, const char *src_buf, size_t n) {
   return dst_buf;
 }
 
-double get_value(format_info_t *format) {
+int get_value(format_info_t *format, double *value) {
   if (format->ds->ds[format->index].type == DS_TYPE_GAUGE) {
-    return format->vl->values[format->index].gauge;
+    *value = format->vl->values[format->index].gauge;
   } else if (format->rates != NULL) {
-    return format->rates[format->index];
+    *value = format->rates[format->index];
   } else if (format->ds->ds[format->index].type == DS_TYPE_COUNTER) {
-    return format->vl->values[format->index].counter;
+    *value = format->vl->values[format->index].counter;
   } else if (format->ds->ds[format->index].type == DS_TYPE_DERIVE) {
-    return format->vl->values[format->index].derive;
+    *value = format->vl->values[format->index].derive;
   } else if (format->ds->ds[format->index].type == DS_TYPE_ABSOLUTE) {
-    return format->vl->values[format->index].absolute;
+    *value = format->vl->values[format->index].absolute;
+  } else {
+    ERROR("utils_format_atsd: unknown data source type: %d",
+          format->ds->ds[format->index].type);
+    return -1;
   }
-  return -1;
+  return 0;
 }
 
 int format_value(char *ret, size_t ret_len, format_info_t *format) {
   size_t offset = 0;
   int status;
-
-  assert(0 == strcmp(format->ds->type, format->vl->type));
 
   memset(ret, 0, ret_len);
 
@@ -217,6 +225,10 @@ int format_value(char *ret, size_t ret_len, format_info_t *format) {
     BUFFER_ADD("%" PRIi64, format->vl->values[format->index].derive);
   } else if (format->ds->ds[format->index].type == DS_TYPE_ABSOLUTE) {
     BUFFER_ADD("%" PRIu64, format->vl->values[format->index].absolute);
+  } else {
+    ERROR("utils_format_atsd: unknown data source type: %d",
+          format->ds->ds[format->index].type);
+    return -1;
   }
 
 #undef BUFFER_ADD
@@ -252,10 +264,15 @@ int format_entity(char *ret, const int ret_len, const char *entity,
   } else {
     if (strcasecmp("localhost", host_name) == 0 ||
         starts_with(host_name, "localhost.")) {
-      gethostname(buf, sizeof buf);
+      gethostname(buf, sizeof(buf));
       host = strdup(buf);
     } else {
       host = strdup(host_name);
+    }
+
+    if (host == NULL) {
+      ERROR("utils_format_atsd: strdup failed");
+      return -1;
     }
 
     if (short_hostname) {
@@ -279,7 +296,7 @@ static void metric_name_append(char *metric_name, const char *str, size_t n) {
   }
 }
 
-static void format_metric_name(char *buffer, size_t len, format_info_t *format,
+static int format_metric_name(char *buffer, size_t len, format_info_t *format,
                                name_rule_t *rule) {
   name_part_t name_part;
   size_t i;
@@ -314,8 +331,10 @@ static void format_metric_name(char *buffer, size_t len, format_info_t *format,
       break;
     default:
       ERROR("utils_format_atsd: unknown metric format part type");
+      return -1;
     }
   }
+  return 0;
 }
 
 static void invert_percent(char *value) {
@@ -334,73 +353,122 @@ static int format_series(series_t *series, format_info_t *format,
   series->time = CDTIME_T_TO_MS(format->vl->time);
   strncpy(series->entity, format->entity, sizeof(series->entity));
 
-  format_metric_name(series->metric, sizeof(series->metric), format, name_rule);
+  ret = format_metric_name(series->metric, sizeof(series->metric), format, name_rule);
+  if (ret != 0) {
+    return -1;
+  }
+
   format_value(series->formatted_value, sizeof(series->formatted_value),
                format);
+
   if (transform != NULL)
     transform(series->formatted_value);
-  if (*format->vl->plugin_instance != '\0' && add_instance_tag)
+
+  if (*format->vl->plugin_instance != '\0' && add_instance_tag) {
     ret =
         add_tag(&series->series_tags, "instance", format->vl->plugin_instance);
+    if (ret != 0) {
+      return -1;
+    }
+  }
+
   ret = add_tag(&series->metric_tags, "plugin", format->vl->plugin);
+  if (ret != 0) {
+    return -1;
+  }
+
   ret = add_tag(&series->metric_tags, "type", format->vl->type);
+  if (ret != 0) {
+    return -1;
+  }
+
   ret =
       add_tag(&series->metric_tags, "type_instance", format->vl->type_instance);
+  if (ret != 0) {
+    return -1;
+  }
+
   ret = add_tag(&series->metric_tags, "data_source",
                 format->ds->ds[format->index].name);
+  if (ret != 0) {
+    return -1;
+  }
+
   ret = add_tag(&series->metric_tags, "data_type",
                 DS_TYPE_TO_STRING(format->ds->ds[format->index].type));
+  if (ret != 0) {
+    return -1;
+  }
 
-  return ret;
+  return 0;
 }
 
-size_t derive_series(series_t *series_buffer, format_info_t *format) {
-  char *key, *value, *strtok_ctx, *tmp;
+int derive_series(series_t *series_buffer, format_info_t *format) {
+  char *key, *value, *strtok_ctx;
+  char tmp[DATA_MAX_NAME_LEN];
   _Bool preserve_original = true;
+  int ret;
   size_t count = 0;
 
   if (format->rates != NULL && strcasecmp(format->vl->plugin, "cpu") == 0 &&
       strcasecmp(format->vl->type_instance, "idle") == 0) {
-    format_series(series_buffer, format,
+    ret = format_series(series_buffer, format,
                   &(name_rule_t)NAME_PATTERN(PLUGIN, TYPE, STRING("busy")),
                   true, invert_percent);
+    if (ret != 0)
+      return -1;
+
     count++;
     series_buffer++;
   } else if (strcasecmp(format->vl->plugin, "df") == 0 &&
              strcasecmp(format->vl->type, "percent_bytes") == 0 &&
              strcasecmp(format->vl->type_instance, "free") == 0) {
-    format_series(series_buffer, format,
+    ret = format_series(series_buffer, format,
                   NAME_PATTERN_PTR(PLUGIN, TYPE, STRING("used_reserved")), true,
                   invert_percent);
+    if (ret != 0)
+      return -1;
+
     count++;
     series_buffer++;
   } else if (strcasecmp(format->vl->plugin, "exec") == 0) {
-    format_series(series_buffer, format,
+    ret = format_series(series_buffer, format,
                   NAME_PATTERN_PTR(PLUGIN_INSTANCE, IS_RAW), false, NULL);
+    if (ret != 0)
+      return -1;
 
     if (strchr(format->vl->type_instance, ';')) {
-      tmp = strdup(format->vl->type_instance);
+      strncpy(tmp, format->vl->type_instance, sizeof(tmp));
       while ((key = strtok_r(tmp, ";", &strtok_ctx)) != NULL) {
         value = strchr(key, '=');
         if (value) {
           *value++ = '\0';
-          add_tag(&series_buffer->series_tags, key, value);
+          ret = add_tag(&series_buffer->series_tags, key, value);
+          if (ret != 0)
+            return -1;
         }
       }
-      free(tmp);
     } else {
-      add_tag(&series_buffer->series_tags, "instance",
+      ret = add_tag(&series_buffer->series_tags, "instance",
               format->vl->type_instance);
+      if (ret != 0)
+        return -1;
     }
 
+    count++;
+    series_buffer++;
     preserve_original = false;
   }
 
   if (preserve_original) {
-    format_series(
+    ret = format_series(
         series_buffer, format,
         NAME_PATTERN_PTR(PLUGIN, TYPE, TYPE_INSTANCE, DATA_SOURCE, IS_RAW),
         true, NULL);
+    if (ret != 0) {
+      return -1;
+    }
+
     count++;
     series_buffer++;
   }
@@ -474,6 +542,9 @@ int format_atsd_command(format_info_t *format, _Bool append_metrics) {
   series_t series_buffer[MAX_DERIVED_SERIES];
 
   series_count = derive_series(series_buffer, format);
+
+  if (series_count < 0)
+    return -1;
 
   memset(format->buffer, 0, format->buffer_len);
   written = 0;

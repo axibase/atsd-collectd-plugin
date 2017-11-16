@@ -335,17 +335,14 @@ static int wa_callback_init(struct wa_callback *cb) {
   return 0;
 }
 
-static void wa_callback_free(void *data) {
-  struct wa_callback *cb;
+static void wa_cb_free(struct wa_callback *cb) {
   atsd_key_t *atsd_stored_key = NULL;
   atsd_value_t *atsd_stored_value = NULL;
   struct wa_cache_s *cache, *next_cache;
   void *empty;
 
-  if (data == NULL)
+  if (cb == NULL)
     return;
-
-  cb = data;
 
   pthread_mutex_lock(&cb->send_lock);
 
@@ -356,23 +353,37 @@ static void wa_callback_free(void *data) {
     cb->sock_fd = -1;
   }
 
-  sfree(cb->name);
-  sfree(cb->node);
-  sfree(cb->protocol);
-  sfree(cb->service);
-  sfree(cb->prefix);
+  if (cb->name != NULL)
+    sfree(cb->name);
+  if (cb->node != NULL)
+    sfree(cb->node);
+  if (cb->protocol != NULL)
+    sfree(cb->protocol);
+  if (cb->service != NULL)
+    sfree(cb->service);
 
-  while (c_avl_pick(cb->value_cache, (void *)&atsd_stored_key,
-                    (void *)&atsd_stored_value) == 0) {
-    sfree(atsd_stored_key);
-    sfree(atsd_stored_value);
-  }
-  c_avl_destroy(cb->value_cache);
+  if (cb->entity != NULL)
+    sfree(cb->entity);
+  if (cb->prefix != NULL)
+    sfree(cb->prefix);
 
-  while (c_avl_pick(cb->metric_cache, (void *)&atsd_stored_key, &empty) == 0) {
-    sfree(atsd_stored_key);
+  if (cb->value_cache != NULL) {
+    while (c_avl_pick(cb->value_cache, (void *)&atsd_stored_key,
+                      (void *)&atsd_stored_value) == 0) {
+      sfree(atsd_stored_key);
+      sfree(atsd_stored_value);
+    }
+    c_avl_destroy(cb->value_cache);
+    cb->value_cache = NULL;
   }
-  c_avl_destroy(cb->metric_cache);
+
+  if (cb->metric_cache != NULL) {
+    while (c_avl_pick(cb->metric_cache, (void *)&atsd_stored_key, &empty) == 0) {
+      sfree(atsd_stored_key);
+    }
+    c_avl_destroy(cb->metric_cache);
+    cb->metric_cache = NULL;
+  }
 
   cache = cb->wa_caches;
   while (cache != NULL) {
@@ -381,12 +392,19 @@ static void wa_callback_free(void *data) {
     sfree(cache);
     cache = next_cache;
   }
+  cb->wa_caches = NULL;
 
-  sfree(cb->entity);
+  pthread_mutex_unlock(&cb->send_lock);
 
   pthread_mutex_destroy(&cb->send_lock);
+  pthread_mutex_destroy(&cb->metric_cache_lock);
+  pthread_mutex_destroy(&cb->value_cache_lock);
 
   sfree(cb);
+}
+
+static void wa_callback_free(void *cb) {
+  wa_cb_free((struct wa_callback *) cb);
 }
 
 static int wa_send_message(char const *message, struct wa_callback *cb) {
@@ -532,8 +550,14 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
   status = c_avl_get(cb->value_cache, ak, (void *)&atsd_stored_value);
   pthread_mutex_unlock(&cb->value_cache_lock);
 
-  if (status == 0) /* metric in tree */ {
-    assert(atsd_stored_value->time < av->time);
+  if (status == 0) {
+    /* The new value is older than that is stored in cache,
+     * just send it without updating the cache
+     */
+    if(atsd_stored_value->time < av->time) {
+      *update_series = true;
+      return 0;
+    }
 
     cur_value = av->value;
     stored_value = atsd_stored_value->value;
@@ -607,12 +631,16 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
 
   status = format_entity(entity, sizeof(entity), cb->entity, vl->host,
                          cb->short_hostname);
-  if (status != 0)
-    goto end;
+  if (status != 0) {
+    sfree(rates);
+    return -1;
+  }
 
   status = wa_update_property(vl, entity, cb);
-  if (status != 0)
-    goto end;
+  if (status != 0) {
+    sfree(rates);
+    return -1;
+  }
 
   format.buffer = commands;
   format.buffer_len = sizeof(commands);
@@ -635,24 +663,31 @@ static int wa_write_messages(const data_set_t *ds, const value_list_t *vl,
     strncpy(cache_key.type_instance, vl->type_instance, DATA_MAX_NAME_LEN);
     strncpy(cache_key.data_source, ds->ds[i].name, DATA_MAX_NAME_LEN);
 
-    cache_value.value = get_value(&format);
+    status = get_value(&format, &cache_value.value);
+    if (status != 0) {
+      sfree(rates);
+      return -1;
+    }
+
     cache_value.time = CDTIME_T_TO_MS(vl->time);
 
     status = check_cache_value(&cache_key, &cache_value, cb, &update_series,
                                &update_metrics);
     if (status != 0) {
-      goto end;
+      sfree(rates);
+      return -1;
     }
 
     if (update_series) {
       format_atsd_command(&format, update_metrics);
       status = wa_send_message(commands, cb);
-      if (status != 0)
-        goto end;
+      if (status != 0) {
+        sfree(rates);
+        return -1;
+      }
     }
   }
 
-end:
   sfree(rates);
   return 0;
 }
@@ -711,7 +746,6 @@ static int wa_config_cache(struct wa_callback *cb, oconfig_item_t *child) {
 static int wa_config_node(oconfig_item_t *ci) {
   struct wa_callback *cb;
   char callback_name[DATA_MAX_NAME_LEN];
-  int status = 0;
 
   cb = calloc(1, sizeof(*cb));
   if (cb == NULL) {
@@ -725,6 +759,14 @@ static int wa_config_node(oconfig_item_t *ci) {
   cb->service = strdup(WA_DEFAULT_SERVICE);
   cb->protocol = strdup(WA_DEFAULT_PROTOCOL);
   cb->prefix = strdup(WA_DEFAULT_PREFIX);
+
+  if (cb->node == NULL || cb->service == NULL ||
+      cb->protocol == NULL || cb->prefix == NULL) {
+    ERROR("write_atsd plugin: strdup failed");
+    wa_cb_free(cb);
+    return -1;
+  }
+
   cb->entity = NULL;
   cb->short_hostname = false;
   cb->store_rates = true;
@@ -734,6 +776,12 @@ static int wa_config_node(oconfig_item_t *ci) {
   cb->value_cache = c_avl_create((void *)compare_atsd_keys);
   cb->metric_cache = NULL;
   cb->metric_cache = c_avl_create((void *)compare_atsd_keys);
+
+  if (cb->value_cache == NULL || cb->value_cache == NULL) {
+    ERROR("write_atsd plugin: c_avl_create failed");
+    wa_cb_free(cb);
+    return -1;
+  }
 
   pthread_mutex_init(&cb->send_lock, /* attr = */ NULL);
   pthread_mutex_init(&cb->value_cache_lock, /* attr = */ NULL);
@@ -752,7 +800,8 @@ static int wa_config_node(oconfig_item_t *ci) {
       if (s > 2) {
         ERROR("write_atsd plugin: failed to parse atsdurl (%s)",
               child->values[0].value.string);
-        status = -1;
+        wa_cb_free(cb);
+        return -1;
       } else {
         int args =
             sscanf(child->values[0].value.string, "%99[^:]://%99[^:]:%99[^\n]",
@@ -761,17 +810,21 @@ static int wa_config_node(oconfig_item_t *ci) {
           if (strcasecmp("UDP", cb->protocol) != 0 &&
               strcasecmp("TCP", cb->protocol) != 0) {
             ERROR("write_atsd plugin: Unknown protocol (%s)", cb->protocol);
-            status = -1;
+            wa_cb_free(cb);
+            return -1;
           }
         } else if (args == 2) {
           if (strlen(cb->protocol) == 0) {
             ERROR("write_atsd plugin: No protocol given (%s)",
                   child->values[0].value.string);
-            status = -1;
+
+            wa_cb_free(cb);
+            return -1;
           } else if (strlen(cb->node) == 0) {
             ERROR("write_atsd plugin: No hostname given (%s)",
                   child->values[0].value.string);
-            status = -1;
+            wa_cb_free(cb);
+            return -1;
           } else {
             if (strcasecmp("TCP", cb->protocol) == 0) {
               sfree(cb->service);
@@ -781,13 +834,20 @@ static int wa_config_node(oconfig_item_t *ci) {
               cb->service = strdup("8082");
             } else {
               ERROR("write_atsd plugin: Unknown protocol (%s)", cb->protocol);
-              status = -1;
+              wa_cb_free(cb);
+              return -1;
+            }
+            if (cb->service == NULL) {
+              ERROR("write_atsd plugin: strdup failed");
+              wa_cb_free(cb);
+              return -1;
             }
           }
         } else {
           ERROR("write_atsd plugin: failed to parse atsdurl (%s)",
                 child->values[0].value.string);
-          status = -1;
+          wa_cb_free(cb);
+          return -1;
         }
       }
     } else if (strcasecmp("Prefix", child->key) == 0)
@@ -804,16 +864,9 @@ static int wa_config_node(oconfig_item_t *ci) {
       ERROR("write_atsd plugin: Invalid configuration "
             "option: %s.",
             child->key);
-      status = -1;
+      wa_cb_free(cb);
+      return -1;
     }
-
-    if (status != 0)
-      break;
-  }
-
-  if (status != 0) {
-    wa_callback_free(cb);
-    return (status);
   }
 
   if (cb->name == NULL)
