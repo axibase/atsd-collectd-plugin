@@ -543,7 +543,7 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
     /* The new value is older than that is stored in cache,
      * just send it without updating the cache
      */
-    if(atsd_stored_value->time < av->time) {
+    if(atsd_stored_value->time > av->time) {
       *update_series = true;
       return 0;
     }
