@@ -115,7 +115,7 @@ static int add_tag(tag_key_val_t **tags, const char *key, const char *val) {
 static void free_tags(tag_key_val_t *tags) {
   tag_key_val_t *tag = tags;
   while (tag != NULL) {
-    tag_key_val_t * next_tag = tag->next;
+    tag_key_val_t *next_tag = tag->next;
     sfree(tag->key);
     sfree(tag->val);
     sfree(tag);
@@ -290,7 +290,7 @@ static void metric_name_append(char *metric_name, const char *str, size_t n) {
 }
 
 static int format_metric_name(char *buffer, size_t len, format_info_t *format,
-                               name_rule_t *rule) {
+                              name_rule_t *rule) {
   memset(buffer, 0, len);
   metric_name_append(buffer, format->prefix, len);
   for (size_t i = 0; rule->name_parts[i].part_type != PART_END; i++) {
@@ -343,7 +343,8 @@ static int format_series(series_t *series, format_info_t *format,
   series->time = CDTIME_T_TO_MS(format->vl->time);
   strncpy(series->entity, format->entity, sizeof(series->entity));
 
-  ret = format_metric_name(series->metric, sizeof(series->metric), format, name_rule);
+  ret = format_metric_name(series->metric, sizeof(series->metric), format,
+                           name_rule);
   if (ret != 0) {
     return -1;
   }
@@ -404,22 +405,23 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
    * produce detailed statistics: system, user, wait, etc. */
   if (format->rates != NULL && strcasecmp(format->vl->plugin, "cpu") == 0 &&
       strcasecmp(format->vl->type_instance, "idle") == 0) {
-    ret = format_series(series_buffer, format,
-                  &(name_rule_t)NAME_PATTERN(PLUGIN, TYPE, STRING("busy")),
-                  true, invert_percent);
+    ret =
+        format_series(series_buffer, format,
+                      &(name_rule_t)NAME_PATTERN(PLUGIN, TYPE, STRING("busy")),
+                      true, invert_percent);
     if (ret != 0)
       return -1;
 
     count++;
     series_buffer++;
-  }
-  else if (strcasecmp(format->vl->plugin, "df") == 0) {
+  } else if (strcasecmp(format->vl->plugin, "df") == 0) {
     /* Create derived series for df.percent_bytes: used_reserved=100%-free*/
-    if(strcasecmp(format->vl->type, "percent_bytes") == 0 &&
-       strcasecmp(format->vl->type_instance, "free") == 0) {
-      ret = format_series(series_buffer, format,
-                          NAME_PATTERN_PTR(PLUGIN, TYPE, STRING("used_reserved")), true,
-                           invert_percent);
+    if (strcasecmp(format->vl->type, "percent_bytes") == 0 &&
+        strcasecmp(format->vl->type_instance, "free") == 0) {
+      ret =
+          format_series(series_buffer, format,
+                        NAME_PATTERN_PTR(PLUGIN, TYPE, STRING("used_reserved")),
+                        true, invert_percent);
       if (ret != 0)
         return -1;
     } else {
@@ -436,7 +438,8 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
      * is replaced with dash in plugin_instance */
     if (format->vl->meta != NULL) {
       char *disk_name;
-      ret = meta_data_get_string(format->vl->meta, "df:unescaped_plugin_instance", &disk_name);
+      ret = meta_data_get_string(format->vl->meta,
+                                 "df:unescaped_plugin_instance", &disk_name);
       if (ret == 0) {
         add_tag(&series_buffer->series_tags, "disk_name", disk_name);
         sfree(disk_name);
@@ -450,7 +453,7 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
    * key1=val1;key2=val2;... format, if possible */
   else if (strcasecmp(format->vl->plugin, "exec") == 0) {
     ret = format_series(series_buffer, format,
-                  NAME_PATTERN_PTR(PLUGIN_INSTANCE, IS_RAW), false, NULL);
+                        NAME_PATTERN_PTR(PLUGIN_INSTANCE, IS_RAW), false, NULL);
     if (ret != 0)
       return -1;
 
@@ -470,7 +473,7 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
       }
     } else {
       ret = add_tag(&series_buffer->series_tags, "instance",
-              format->vl->type_instance);
+                    format->vl->type_instance);
       if (ret != 0)
         return -1;
     }
@@ -496,7 +499,8 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
   return count;
 }
 
-static size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t *tags) {
+static size_t format_tags(char *buffer, size_t buffer_len,
+                          tag_key_val_t *tags) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
 
   size_t written = 0;
@@ -516,7 +520,7 @@ static size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t *tags) 
 /* Series command documentation:
  * https://github.com/axibase/atsd/blob/master/api/network/series.md */
 static size_t format_series_command(char *buffer, size_t buffer_len,
-                             series_t *series) {
+                                    series_t *series) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
 
   size_t written = 0;
@@ -539,7 +543,7 @@ static size_t format_series_command(char *buffer, size_t buffer_len,
 /* Metric command documentation:
  * https://github.com/axibase/atsd/blob/master/api/network/metric.md */
 static size_t format_metric_command(char *buffer, size_t buffer_len,
-                             series_t *series) {
+                                    series_t *series) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
 
   size_t written = 0;

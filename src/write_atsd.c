@@ -364,7 +364,8 @@ static void wa_cb_free(struct wa_callback *cb) {
   }
 
   if (cb->metric_cache != NULL) {
-    while (c_avl_pick(cb->metric_cache, (void *)&atsd_stored_key, &empty) == 0) {
+    while (c_avl_pick(cb->metric_cache, (void *)&atsd_stored_key, &empty) ==
+           0) {
       sfree(atsd_stored_key);
     }
     c_avl_destroy(cb->metric_cache);
@@ -390,9 +391,7 @@ static void wa_cb_free(struct wa_callback *cb) {
   sfree(cb);
 }
 
-static void wa_callback_free(void *cb) {
-  wa_cb_free((struct wa_callback *) cb);
-}
+static void wa_callback_free(void *cb) { wa_cb_free((struct wa_callback *)cb); }
 
 static int wa_send_message(char const *message, struct wa_callback *cb) {
   int status;
@@ -459,19 +458,24 @@ static int wa_update_property(const value_list_t *vl, const char *entity,
     struct utsname uts_buf;
     ret = uname(&uts_buf);
     if (!ret) {
-      escape_atsd_string(uts_buf.sysname, uts_buf.sysname, sizeof(uts_buf.sysname));
-      escape_atsd_string(uts_buf.nodename, uts_buf.nodename, sizeof(uts_buf.nodename));
-      escape_atsd_string(uts_buf.release, uts_buf.release, sizeof(uts_buf.release));
-      escape_atsd_string(uts_buf.version, uts_buf.version, sizeof(uts_buf.version));
-      escape_atsd_string(uts_buf.machine, uts_buf.machine, sizeof(uts_buf.machine));
+      escape_atsd_string(uts_buf.sysname, uts_buf.sysname,
+                         sizeof(uts_buf.sysname));
+      escape_atsd_string(uts_buf.nodename, uts_buf.nodename,
+                         sizeof(uts_buf.nodename));
+      escape_atsd_string(uts_buf.release, uts_buf.release,
+                         sizeof(uts_buf.release));
+      escape_atsd_string(uts_buf.version, uts_buf.version,
+                         sizeof(uts_buf.version));
+      escape_atsd_string(uts_buf.machine, uts_buf.machine,
+                         sizeof(uts_buf.machine));
       written += snprintf(command + written, sizeof(command) - written,
                           " v:OperatingSystem=\"%s\""
                           " v:Node=\"%s\""
                           " v:Kernel_Release_Version=\"%s\""
                           " v:OS_Version=\"%s\""
                           " v:Hardware=\"%s\"",
-                          uts_buf.sysname, uts_buf.nodename, uts_buf.release, uts_buf.version,
-                          uts_buf.machine);
+                          uts_buf.sysname, uts_buf.nodename, uts_buf.release,
+                          uts_buf.version, uts_buf.machine);
     }
 
     snprintf(command + written, sizeof(command) - written, "\n");
@@ -536,7 +540,7 @@ static int check_cache_value(atsd_key_t *ak, atsd_value_t *av,
     /* The new value is older than that is stored in cache,
      * just send it without updating the cache
      */
-    if(atsd_stored_value->time > av->time) {
+    if (atsd_stored_value->time > av->time) {
       *update_series = true;
       return 0;
     }
@@ -732,8 +736,8 @@ static int wa_config_node(oconfig_item_t *ci) {
   cb->protocol = strdup(WA_DEFAULT_PROTOCOL);
   cb->prefix = strdup(WA_DEFAULT_PREFIX);
 
-  if (cb->node == NULL || cb->service == NULL ||
-      cb->protocol == NULL || cb->prefix == NULL) {
+  if (cb->node == NULL || cb->service == NULL || cb->protocol == NULL ||
+      cb->prefix == NULL) {
     ERROR("write_atsd plugin: strdup failed");
     wa_cb_free(cb);
     return -1;
