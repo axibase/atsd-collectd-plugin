@@ -223,7 +223,7 @@ static int wa_flush_nolock(cdtime_t timeout, struct wa_callback *cb) {
 
   DEBUG("write_atsd plugin: wa_flush_nolock: timeout = %.3f; "
         "send_buf_fill = %zu;",
-        (double)timeout, cb->send_buf_fill);
+        CDTIME_T_TO_DOUBLE(timeout), cb->send_buf_fill);
 
   /* timeout == 0  => flush unconditionally */
   if (timeout > 0) {

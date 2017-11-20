@@ -239,20 +239,8 @@ int format_entity(char *ret, const int ret_len, const char *entity,
                   const char *host_name, _Bool short_hostname) {
   char *host;
   char buf[HOST_NAME_MAX];
-  _Bool use_entity = true;
 
-  if (entity != NULL) {
-    for (const char *e = entity; *e != '\0'; e++) {
-      if (*e == ' ') {
-        use_entity = false;
-        break;
-      }
-    }
-  } else {
-    use_entity = false;
-  }
-
-  if (use_entity) {
+  if (entity != NULL && strlen(entity) != 0 && strchr(entity, ' ') == NULL) {
     sstrncpy(ret, entity, ret_len);
   } else {
     if (strcasecmp("localhost", host_name) == 0 ||
