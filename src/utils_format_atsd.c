@@ -433,7 +433,7 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
     /* Fetch original unescaped disk name from meta */
     if (format->vl->meta != NULL) {
       char *disk_name;
-      ret = meta_data_get_string(format->vl->meta, "df:disk_name", &disk_name);
+      ret = meta_data_get_string(format->vl->meta, "df:unescaped_plugin_instance", &disk_name);
       if (ret == 0) {
         add_tag(&series_buffer->series_tags, "disk_name", disk_name);
         sfree(disk_name);
