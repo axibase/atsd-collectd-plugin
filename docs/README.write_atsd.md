@@ -4,8 +4,6 @@ The ATSD Write plugin sends collectd metrics to an [Axibase Time Series Database
 
 ## Run from Binary
 
-Binary releases are available [here](https://github.com/axibase/atsd-collectd-plugin/releases/tag/5.5.1-atsd-binary).
-
 * Pre-installation:
 
 ```ls
@@ -38,8 +36,6 @@ sudo service collectd-axibase start
 hostname --fqdn
 ```
 
-
-
 ## Configuration
 
 ```
@@ -63,15 +59,16 @@ hostname --fqdn
 
 ### Settings:
 
- **Setting**              | **Required** | **Description**   | **Default Value**
-----------------------|:----------|:-------------------------|:----------------
- `AtsdUrl`     	      | yes      | Protocol to transfer data: `tcp` or `udp`, hostname and port of target ATSD server| `tcp://localhost:8081`
- `Entity`             | no       | Default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname.                                                                    | `hostname`
-  `ShortHostname`             | no       | Convert entity from fully qualified domain name to short name | `false`
- `Prefix`             | no       | Metric prefix to group `collectd` metrics                                                     | `collectd.`
- `Cache`             | no       | Name of read plugins whose metrics will be cached.<br>Cache feature is used to save disk space in the database by not resending the same values. | `-`
- `Interval`             | no       | Time in seconds during which values within the threshold are not sent. | `-`
- `Threshold`             | no       | Deviation threshold, in %, from the previously sent value. If threshold is exceeded, then the value is sent regardless of the cache interval.    | `-`
+ **Setting** | **Required** | **Description**   | **Default Value**
+---|:---|:---|:---
+ `AtsdUrl`        | yes | Protocol to transfer data: `tcp` or `udp`, hostname and port of target ATSD server                                                                     | `tcp://localhost:8081`
+ `Entity`         | no  | Default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname.      | `hostname`
+  `ShortHostname` | no  | Convert entity from fully qualified domain name to short name                                                                                          | `false`
+ `Prefix`         | no  | Metric prefix to group `collectd` metrics                                                                                                              | `collectd.`
+ `Cache`          | no  | Name of read plugins whose metrics will be cached. Cache feature is used to save disk space in the database by not resending the same values.          | `-`
+ `Interval`       | no  | Time in seconds during which values within the threshold are not sent.                                                                                 | `-`
+ `Threshold`      | no  | Deviation threshold, in %, from the previously sent value. If threshold is exceeded, then the value is sent regardless of the cache interval.          | `-`
+ `StoreRates`     | no  | If set to true (the default), convert counter values to rates. If set to false counter values are stored as is, i. e. as an increasing integer number. | true
 
 
 ### Sample Configuration File
@@ -107,16 +104,16 @@ LoadPlugin vmem
   </Aggregation>
 </Plugin>
 
-# The following configuration collects data from all filesystems: 
+# The following configuration collects data from all filesystems:
 # the number of free, reserved and used inodes is reported in addition to
-# the usual metrics, the values are relative percentage. 
+# the usual metrics, the values are relative percentage.
 <Plugin df>
     IgnoreSelected true
     ReportInodes true
     ValuesPercentage true
 </Plugin>
 
-# The following configuration collects performance statistics from all 
+# The following configuration collects performance statistics from all
 # hard-disks and, where supported, partitions.
 <Plugin disk>
     IgnoreSelected true
@@ -190,7 +187,7 @@ series e:nurswgsvl007 ms:1437658049000 m:collectd.users.logged_in=4
 
 ## `exec` Plugin Processing
 
-The [`exec`](https://collectd.org/documentation/manpages/collectd-exec.5.shtml) plugin invokes a custom script that  generates `PUTVAL` commands targeting the following format: 
+The [`exec`](https://collectd.org/documentation/manpages/collectd-exec.5.shtml) plugin invokes a custom script that  generates `PUTVAL` commands targeting the following format:
 
 ```ls
 PUTVAL $HOSTNAME/exec-{plugin-instance}/gauge-{type-instance} N:{value}
@@ -291,7 +288,7 @@ NOTE: steps to installing collectd on a remote machine (to send data into ATSD) 
 
 
 ### CentOS / RedHat
- 
+
 NOTE: Installation should be performed under the root user.
 
 Install Dependencies:
@@ -348,4 +345,3 @@ Correct response:
 ```ls
 collectd (32615) is running.
 ```
-
