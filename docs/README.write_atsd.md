@@ -2,40 +2,6 @@
 
 The ATSD Write plugin sends collectd metrics to an [Axibase Time Series Database](https://axibase.com/products/axibase-time-series-database/) server.
 
-## Run from Binary
-
-* Pre-installation:
-
-```ls
-sudo apt-get install libltdl7                           # for Ubuntu 16.04
-sudo yum install libtool-ltdl-devel yajl initscripts    # for Centos 7
-```
-
-* To run from a binary release, download and install it:
-
-```ls
-sudo dpkg -i ubuntu_1*.04_amd64.deb              # for Ubuntu
-sudo rpm -Uvh sles_1*_amd64.rpm                  # for SLES
-sudo rpm -Uvh centos_ *_amd64.rpm                # for Centos
-```
-
-* Replace `${ATSD_HOSTNAME}` with the hostname or IP address of the target ATSD server:
-```ls
-sudo sed -i s,atsd_url,tcp://${ATSD_HOSTNAME}:8081,g /opt/collectd/etc/collectd.conf # for Ubuntu
-sudo sed -i s,atsd_url,tcp://${ATSD_HOSTNAME}:8081,g /etc/collectd.conf              # for others
-```
-
-* Start the service:
-
-```
-sudo service collectd-axibase start
-```
-
-* Statistics will be sent to `tcp://${ATSD_HOSTNAME}:8081` with default entity - fully qualified domain name (FQDN) of machine. To get it run:
-```
-hostname --fqdn
-```
-
 ## Configuration
 
 ```
@@ -59,16 +25,16 @@ hostname --fqdn
 
 ### Settings:
 
- **Setting** | **Required** | **Description**   | **Default Value**
----|:---|:---|:---
- `AtsdUrl`        | yes | Protocol to transfer data: `tcp` or `udp`, hostname and port of target ATSD server                                                                     | `tcp://localhost:8081`
- `Entity`         | no  | Default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname.      | `hostname`
-  `ShortHostname` | no  | Convert entity from fully qualified domain name to short name                                                                                          | `false`
- `Prefix`         | no  | Metric prefix to group `collectd` metrics                                                                                                              | `collectd.`
- `Cache`          | no  | Name of read plugins whose metrics will be cached. Cache feature is used to save disk space in the database by not resending the same values.          | `-`
- `Interval`       | no  | Time in seconds during which values within the threshold are not sent.                                                                                 | `-`
- `Threshold`      | no  | Deviation threshold, in %, from the previously sent value. If threshold is exceeded, then the value is sent regardless of the cache interval.          | `-`
- `StoreRates`     | no  | If set to true (the default), convert counter values to rates. If set to false counter values are stored as is, i. e. as an increasing integer number. | true
+ **Setting**      | **Required** | **Description**                                                                                                                                        | **Default Value**
+------------------|:-------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------
+ `AtsdUrl`        | no           | Protocol to transfer data: `tcp` or `udp`, hostname and port of target ATSD server                                                                     | `tcp://localhost:8081`
+ `Entity`         | no           | Default entity under which all metrics will be stored. By default (if setting is left commented out), entity will be set to the machine hostname.      | `hostname`
+  `ShortHostname` | no           | Convert entity from fully qualified domain name to short name                                                                                          | `false`
+ `Prefix`         | no           | Metric prefix to group `collectd` metrics                                                                                                              | `collectd`
+ `Cache`          | no           | Name of read plugins whose metrics will be cached. Cache feature is used to save disk space in the database by not resending the same values.          | `-`
+ `Interval`       | no           | Time in seconds during which values within the threshold are not sent.                                                                                 | `-`
+ `Threshold`      | no           | Deviation threshold, in %, from the previously sent value. If threshold is exceeded, then the value is sent regardless of the cache interval.          | `-`
+ `StoreRates`     | no           | If set to true, convert counter values to rates. If set to false counter values are stored as is, i. e. as an increasing integer number.               | true
 
 
 ### Sample Configuration File
