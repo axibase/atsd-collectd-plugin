@@ -344,19 +344,12 @@ static void wa_cb_free(struct wa_callback *cb) {
     cb->sock_fd = -1;
   }
 
-  if (cb->name != NULL)
-    sfree(cb->name);
-  if (cb->node != NULL)
-    sfree(cb->node);
-  if (cb->protocol != NULL)
-    sfree(cb->protocol);
-  if (cb->service != NULL)
-    sfree(cb->service);
-
-  if (cb->entity != NULL)
-    sfree(cb->entity);
-  if (cb->prefix != NULL)
-    sfree(cb->prefix);
+  sfree(cb->name);
+  sfree(cb->node);
+  sfree(cb->protocol);
+  sfree(cb->service);
+  sfree(cb->entity);
+  sfree(cb->prefix);
 
   atsd_key_t *atsd_stored_key;
   atsd_value_t *atsd_stored_value;

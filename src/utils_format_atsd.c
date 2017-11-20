@@ -399,7 +399,9 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
   _Bool preserve_original = true;
   size_t count = 0;
 
-  /* Produce derived series for cpu: busy=100%-idle  */
+  /* Create derived series for cpu: busy=100%-idle,
+   * becuase cpu plugin option ReportByState=false doesn't
+   * produce detailed statistics: system, user, wait, etc. */
   if (format->rates != NULL && strcasecmp(format->vl->plugin, "cpu") == 0 &&
       strcasecmp(format->vl->type_instance, "idle") == 0) {
     ret = format_series(series_buffer, format,
@@ -412,7 +414,7 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
     series_buffer++;
   }
   else if (strcasecmp(format->vl->plugin, "df") == 0) {
-    /* Produce derived series for df.percent_bytes: used_reserved=100%-free  */
+    /* Create derived series for df.percent_bytes: used_reserved=100%-free*/
     if(strcasecmp(format->vl->type, "percent_bytes") == 0 &&
        strcasecmp(format->vl->type_instance, "free") == 0) {
       ret = format_series(series_buffer, format,
@@ -430,7 +432,8 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
       preserve_original = false;
     }
 
-    /* Fetch original unescaped disk name from meta */
+    /* Fetch original unescaped disk name from meta, because slash
+     * is replaced with dash in plugin_instance */
     if (format->vl->meta != NULL) {
       char *disk_name;
       ret = meta_data_get_string(format->vl->meta, "df:unescaped_plugin_instance", &disk_name);
@@ -444,8 +447,7 @@ static int derive_series(series_t *series_buffer, format_info_t *format) {
     series_buffer++;
   }
   /* Fetch additional tags from type instance of exec plugin in
-   * key1=val1;key2=val2;... format, if possible
-   */
+   * key1=val1;key2=val2;... format, if possible */
   else if (strcasecmp(format->vl->plugin, "exec") == 0) {
     ret = format_series(series_buffer, format,
                   NAME_PATTERN_PTR(PLUGIN_INSTANCE, IS_RAW), false, NULL);
@@ -511,6 +513,8 @@ static size_t format_tags(char *buffer, size_t buffer_len, tag_key_val_t *tags) 
   return written;
 }
 
+/* Series command documentation:
+ * https://github.com/axibase/atsd/blob/master/api/network/series.md */
 static size_t format_series_command(char *buffer, size_t buffer_len,
                              series_t *series) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
@@ -532,6 +536,8 @@ static size_t format_series_command(char *buffer, size_t buffer_len,
   return written;
 }
 
+/* Metric command documentation:
+ * https://github.com/axibase/atsd/blob/master/api/network/metric.md */
 static size_t format_metric_command(char *buffer, size_t buffer_len,
                              series_t *series) {
   char escape_buffer[6 * DATA_MAX_NAME_LEN];
