@@ -26,6 +26,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef HOST_NAME_MAX
+  #define HOST_NAME_MAX 255
+#endif
+
 #define PART_END -1
 #define PART_STR 0
 #define PART_VL_PLUGIN 1
@@ -123,7 +127,7 @@ static void free_tags(tag_key_val_t *tags) {
   }
 }
 
-static size_t strlcat(char *dst, const char *src, size_t siz) {
+static size_t stradd(char *dst, const char *src, size_t siz) {
   char *d = dst;
   const char *s = src;
   size_t n = siz;
@@ -272,8 +276,8 @@ int format_entity(char *ret, const int ret_len, const char *entity,
 static void metric_name_append(char *metric_name, const char *str, size_t n) {
   if (*str != '\0') {
     if (*metric_name != '\0')
-      strlcat(metric_name, ".", n);
-    strlcat(metric_name, str, n);
+      stradd(metric_name, ".", n);
+    stradd(metric_name, str, n);
   }
 }
 
@@ -548,7 +552,7 @@ static size_t format_metric_command(char *buffer, size_t buffer_len,
 
 int format_atsd_command(format_info_t *format, _Bool append_metrics) {
   series_t series_buffer[MAX_DERIVED_SERIES];
-  size_t series_count = derive_series(series_buffer, format);
+  int series_count = derive_series(series_buffer, format);
 
   if (series_count < 0)
     return -1;
