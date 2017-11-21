@@ -240,7 +240,7 @@ static int wa_flush_nolock(cdtime_t timeout, struct wa_callback *cb) {
   status = wa_send_buffer(cb);
   wa_reset_buffer(cb);
 
-  return (status);
+  return status;
 }
 
 static int wa_callback_init(struct wa_callback *cb) {
@@ -254,7 +254,7 @@ static int wa_callback_init(struct wa_callback *cb) {
    * is made per second. */
   cdtime_t now = cdtime();
   if ((now - cb->last_connect_time) < WA_MIN_RECONNECT_INTERVAL)
-    return (EAGAIN);
+    return EAGAIN;
   cb->last_connect_time = now;
   cb->last_property_time = now;
 
@@ -414,7 +414,7 @@ static int wa_send_message(char const *message, struct wa_callback *cb) {
   status = wa_flush_nolock(/* timeout = */ 0, cb);
   if (status != 0) {
     pthread_mutex_unlock(&cb->send_lock);
-    return (status);
+    return status;
   }
 
   /* Assert that we have enough space for this message. */
